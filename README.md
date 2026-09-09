@@ -1,2 +1,1 @@
-# keshet-order-form
-Public order form for Keshet / Sonol existing customers
+טופס הזמנת אמצעי תדלוק — קשת יזמות עסקית / סונול
