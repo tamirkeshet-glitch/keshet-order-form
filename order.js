@@ -26,7 +26,6 @@ const SHTIFO = [
   {v:"4", t:"כן - ארבע שטיפות בחודש"},
   {v:"5", t:"כן - חמש שטיפות בחודש"}
 ];
-
 const VEHICLE_ENTRIES = [
   ["476326715","91491319","1967263462","711923665","1704523471","96866865","1518311232","2138349192","114836198","1350158276","936176596","1799999744","1877045025"],
   ["1074898548","1589928531","1904065670","98433035","1360140015","732385153","675448834","1121789582","392902928","1226274254","1004204721","1388713992","1220406068"],
@@ -39,7 +38,6 @@ const VEHICLE_ENTRIES = [
   ["494263038","683045601","354201912","644583214","635088258","45667851","1648395418","991972332","1884324646","505758528","270561510","978929556","960703604"],
   ["1932529716","1625526402","1155301913","1593765537","850523715","901130699","687754495","653986194","1007410702","45002123","1734079682","104928308", null]
 ];
-
 const E = {
   company: "934169292",
   hp: "1516374471",
@@ -59,13 +57,11 @@ const E = {
   sono_fuel: "1292972257",
   sono_denoms: ["870630053","20073982","2010242330","2143055710","1862823812","394350578"]
 };
-
 let path = ["customer", "choose"];
 let step = 0;
 let submitted = false;
 const vehicleCount = { n: 0 };
 const driverCount = { n: 0 };
-
 function $(sel){ return document.querySelector(sel); }
 function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 function radio(name){
@@ -77,13 +73,11 @@ function selectedTypes(){
 }
 function wants(type){ return selectedTypes().includes(type); }
 function currentPanel(){ return path[step]; }
-
 function rebuildPath(){
   const chosen = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
   path = ["customer", "choose", ...chosen, "summary"];
   if (step >= path.length) step = path.length - 1;
 }
-
 function renderSteps(){
   $("#steps").innerHTML = path.map((key,i) => {
     const cls = i===step ? "active" : (i<step ? "done" : "");
@@ -95,7 +89,6 @@ function renderSteps(){
   $("#prevBtn").style.visibility = step===0 ? "hidden" : "visible";
   $("#nextBtn").textContent = currentPanel()==="summary" ? "שליחת הזמנה" : "המשך";
 }
-
 function sel(name, options, required){
   const req = required ? "required" : "";
   return `<select name="${name}" ${req}>` +
@@ -103,14 +96,12 @@ function sel(name, options, required){
     options.map(o => `<option value="${o}">${o}</option>`).join("") +
     `</select>`;
 }
-
 function shtifoSel(name){
   return `<select name="${name}" required>` +
     `<option value="">בחירה</option>` +
     SHTIFO.map(o => `<option value="${o.v}">${o.t}</option>`).join("") +
     `</select>`;
 }
-
 function addVehicle(){
   if (vehicleCount.n >= 10) return;
   const i = vehicleCount.n++;
@@ -137,7 +128,6 @@ function addVehicle(){
   $("#addVehicle").style.display = vehicleCount.n >= 10 ? "none" : "inline-block";
 }
 function label(t, req){ return `<label>${t}${req?' <span class="req">*</span>':''}</label>`; }
-
 function addDriver(){
   if (driverCount.n >= 2) return;
   const i = driverCount.n++;
@@ -155,9 +145,7 @@ function addDriver(){
   $("#driversList").appendChild(wrap);
   $("#addDriver").style.display = driverCount.n >= 2 ? "none" : "inline-block";
 }
-
 function field(name){ const el = document.querySelector(`[name="${name}"]`); return el ? el.value.trim() : ""; }
-
 function validate(){
   const err = $("#formError");
   err.style.display = "none";
@@ -197,12 +185,11 @@ function validate(){
   }
   return true;
 }
-
-function categoryValue(){
+function categoryValue(type){
+  if (type) return CATEGORY_MAP[type] || "";
   const first = PRODUCT_PANELS.find(t => wants(t));
   return first ? CATEGORY_MAP[first] : "";
 }
-
 function buildSummary(){
   const lines = [
     `<b>${val("company")}</b> · ${val("hp")}`,
@@ -216,7 +203,6 @@ function buildSummary(){
   ];
   $("#summary").innerHTML = lines.join("<br>");
 }
-
 function addHidden(form, name, value){
   if (value===undefined || value===null || String(value)==="") return;
   const i = document.createElement("input");
@@ -228,105 +214,120 @@ function addHidden(form, name, value){
 function addEntry(form, entry, value){
   addHidden(form, "entry." + entry, value);
 }
-
-function pageHistoryValue(){
+function pageHistoryValue(type){
   const pages = [0, 1];
-  if (wants("vehicle")) {
+  const includeVehicle = type ? type === "vehicle" : wants("vehicle");
+  const includeDriver = type ? type === "driver" : wants("driver");
+  const includeMaster = type ? type === "master" : wants("master");
+  const includeSono = type ? type === "sono" : wants("sono");
+  if (includeVehicle) {
     for (let i = 0; i < vehicleCount.n; i++) pages.push(5 + i);
   }
-  if (wants("driver")) {
+  if (includeDriver) {
     pages.push(2);
     if (driverCount.n > 1) pages.push(3);
   }
-  if (wants("master")) pages.push(4);
-  if (wants("sono")) pages.push(15);
+  if (includeMaster) pages.push(4);
+  if (includeSono) pages.push(15);
   return pages.join(",");
 }
-
-function submitToGoogle(){
-  const form = $("#gform");
-  form.innerHTML = "";
-  addHidden(form, "fvv", "1");
-  addHidden(form, "pageHistory", pageHistoryValue());
-  addHidden(form, "submissionTimestamp", "-1");
+function addCustomerFields(form){
   addEntry(form, E.company, val("company"));
   addEntry(form, E.hp, val("hp"));
   addEntry(form, E.phone, val("phone"));
   addEntry(form, E.address, val("address"));
   addEntry(form, E.email, val("email"));
   addEntry(form, E.sig1_name, val("sig1_name"));
-  addEntry(form, E.category, categoryValue());
-
-  if (wants("vehicle")) {
-    for (let i=0;i<vehicleCount.n;i++){
-      const ids = VEHICLE_ENTRIES[i];
-      addEntry(form, ids[0], field("v_amtsei_"+i));
-      addEntry(form, ids[1], field("v_plate_"+i));
-      addEntry(form, ids[2], field("v_phone_"+i));
-      addEntry(form, ids[3], field("v_fuel_"+i));
-      addEntry(form, ids[4], field("v_type_"+i));
-      addEntry(form, ids[5], field("v_day_"+i));
-      addEntry(form, ids[6], field("v_month_"+i));
-      addEntry(form, ids[7], field("v_model_"+i));
-      addEntry(form, ids[8], field("v_year_"+i));
-      addEntry(form, ids[9], field("v_driver_"+i));
-      addEntry(form, ids[10], field("v_dept_"+i));
-      addEntry(form, ids[11], field("v_shtifo_"+i));
-      if (ids[12]) {
-        const more = (i < vehicleCount.n-1)
-          ? "כן, הוסף אמצעי תדלוק/רכב נוסף"
-          : "לא, סיים את ההזמנה";
-        addEntry(form, ids[12], more);
-      }
-    }
-  }
-
-  if (wants("driver")) {
-    for (let i=0;i<driverCount.n;i++){
-      const ids = E.drivers[i];
-      addEntry(form, ids.name, field("d_name_"+i));
-      addEntry(form, ids.id, field("d_id_"+i));
-      addEntry(form, ids.fuel, field("d_fuel_"+i));
-      addEntry(form, ids.day, field("d_day_"+i));
-      addEntry(form, ids.month, field("d_month_"+i));
-      if (ids.more) {
-        const more = (i < driverCount.n-1)
-          ? "כן, הזמן כרטיס נהג נוסף"
-          : "לא, סיים את ההזמנה";
-        addEntry(form, ids.more, more);
-      }
-    }
-  }
-
-  if (wants("master")) {
-    addEntry(form, E.master_qty, val("master_qty"));
-    addEntry(form, E.master_fuel, val("master_fuel"));
-    addEntry(form, E.master_day, val("master_day"));
-    addEntry(form, E.master_month, val("master_month"));
-  }
-
-  if (wants("sono")) {
-    addEntry(form, E.sono_fuel, radio("sono_fuel"));
-    const denoms = ["sono_100","sono_150","sono_200","sono_250","sono_500","sono_1000"];
-    denoms.forEach((id, idx) => addEntry(form, E.sono_denoms[idx], val(id)));
-  }
-
-  submitted = true;
-  form.submit();
-  setTimeout(showSuccess, 900);
 }
-
+function addVehicleFields(form){
+  for (let i=0;i<vehicleCount.n;i++){
+    const ids = VEHICLE_ENTRIES[i];
+    addEntry(form, ids[0], field("v_amtsei_"+i));
+    addEntry(form, ids[1], field("v_plate_"+i));
+    addEntry(form, ids[2], field("v_phone_"+i));
+    addEntry(form, ids[3], field("v_fuel_"+i));
+    addEntry(form, ids[4], field("v_type_"+i));
+    addEntry(form, ids[5], field("v_day_"+i));
+    addEntry(form, ids[6], field("v_month_"+i));
+    addEntry(form, ids[7], field("v_model_"+i));
+    addEntry(form, ids[8], field("v_year_"+i));
+    addEntry(form, ids[9], field("v_driver_"+i));
+    addEntry(form, ids[10], field("v_dept_"+i));
+    addEntry(form, ids[11], field("v_shtifo_"+i));
+    if (ids[12]) {
+      const more = (i < vehicleCount.n-1)
+        ? "כן, הוסף אמצעי תדלוק/רכב נוסף"
+        : "לא, סיים את ההזמנה";
+      addEntry(form, ids[12], more);
+    }
+  }
+}
+function addDriverFields(form){
+  for (let i=0;i<driverCount.n;i++){
+    const ids = E.drivers[i];
+    addEntry(form, ids.name, field("d_name_"+i));
+    addEntry(form, ids.id, field("d_id_"+i));
+    addEntry(form, ids.fuel, field("d_fuel_"+i));
+    addEntry(form, ids.day, field("d_day_"+i));
+    addEntry(form, ids.month, field("d_month_"+i));
+    if (ids.more) {
+      const more = (i < driverCount.n-1)
+        ? "כן, הזמן כרטיס נהג נוסף"
+        : "לא, סיים את ההזמנה";
+      addEntry(form, ids.more, more);
+    }
+  }
+}
+function addMasterFields(form){
+  addEntry(form, E.master_qty, val("master_qty"));
+  addEntry(form, E.master_fuel, val("master_fuel"));
+  addEntry(form, E.master_day, val("master_day"));
+  addEntry(form, E.master_month, val("master_month"));
+}
+function addSonoFields(form){
+  addEntry(form, E.sono_fuel, radio("sono_fuel"));
+  const denoms = ["sono_100","sono_150","sono_200","sono_250","sono_500","sono_1000"];
+  denoms.forEach((id, idx) => addEntry(form, E.sono_denoms[idx], val(id)));
+}
+function fillFormForType(type){
+  const form = $("#gform");
+  form.innerHTML = "";
+  addHidden(form, "fvv", "1");
+  addHidden(form, "pageHistory", pageHistoryValue(type));
+  addHidden(form, "submissionTimestamp", "-1");
+  addCustomerFields(form);
+  addEntry(form, E.category, categoryValue(type));
+  if (type === "vehicle") addVehicleFields(form);
+  if (type === "driver") addDriverFields(form);
+  if (type === "master") addMasterFields(form);
+  if (type === "sono") addSonoFields(form);
+}
+function submitToGoogle(){
+  const types = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
+  if (!types.length || submitted) return;
+  submitted = true;
+  $("#nextBtn").disabled = true;
+  $("#nextBtn").textContent = types.length > 1 ? "שולח הזמנות..." : "שולח הזמנה...";
+  let i = 0;
+  function sendNext(){
+    fillFormForType(types[i]);
+    $("#gform").submit();
+    i += 1;
+    if (i < types.length) {
+      setTimeout(sendNext, 1200);
+    } else {
+      setTimeout(showSuccess, 900);
+    }
+  }
+  sendNext();
+}
 function showSuccess(){
   $("#wizard").style.display = "none";
   $("#steps").style.display = "none";
   document.querySelector(".head").style.display = "none";
   $("#successMessage").style.display = "block";
 }
-
-document.getElementById("hidden_iframe").addEventListener("load", function(){
-  if (submitted) showSuccess();
-});
-
+document.getElementById("hidden_iframe").addEventListener("load", function(){});
 document.querySelectorAll('input[name="order_type"]').forEach(el => {
   el.addEventListener("change", () => {
     if (el.value==="vehicle" && el.checked && vehicleCount.n===0) addVehicle();
@@ -335,7 +336,6 @@ document.querySelectorAll('input[name="order_type"]').forEach(el => {
     renderSteps();
   });
 });
-
 $("#addVehicle").addEventListener("click", addVehicle);
 $("#addDriver").addEventListener("click", addDriver);
 $("#prevBtn").addEventListener("click", () => { step = Math.max(0, step-1); renderSteps(); });
@@ -347,5 +347,4 @@ $("#nextBtn").addEventListener("click", () => {
   if (currentPanel()==="summary") buildSummary();
   renderSteps();
 });
-
 renderSteps();
