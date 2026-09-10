@@ -125,7 +125,6 @@
         <div class="logo-keshet">קשת יזמות עסקית</div>
       </div>
     </div>
-
     <div class="form-card" id="app">
       <div class="head">
         <h1>טופס הזמנת אמצעי תדלוק</h1>
@@ -133,7 +132,6 @@
       </div>
       <div class="steps" id="steps"></div>
       <div class="body" id="wizard">
-
         <section class="panel active" data-panel="customer">
           <h2 class="section-title">פרטי הלקוח</h2>
           <div class="grid">
@@ -164,7 +162,6 @@
             </div>
           </div>
         </section>
-
         <section class="panel" data-panel="choose">
           <h2 class="section-title">מה מזמינים?</h2>
           <p class="muted" style="margin-bottom:14px">סמנו סוג אחד או יותר. אחרי הבחירה תועברו רק למסכי הפרטים שנבחרו.</p>
@@ -191,21 +188,18 @@
             </label>
           </div>
         </section>
-
         <section class="panel" data-panel="vehicle">
           <h2 class="section-title">דלקן / כרטיס רכב</h2>
           <div id="vehiclesList"></div>
           <button type="button" class="btn btn-add" id="addVehicle">+ הוסף רכב / דלקן</button>
           <p class="muted" style="margin-top:8px">עד 10 רכבים.</p>
         </section>
-
         <section class="panel" data-panel="driver">
           <h2 class="section-title">כרטיס נהג</h2>
           <div id="driversList"></div>
           <button type="button" class="btn btn-add" id="addDriver">+ הוסף כרטיס נהג</button>
           <p class="muted" style="margin-top:8px">עד 2 כרטיסי נהג.</p>
         </section>
-
         <section class="panel" data-panel="master">
           <h2 class="section-title">כרטיס מאסטר</h2>
           <div class="grid">
@@ -233,7 +227,6 @@
             </div>
           </div>
         </section>
-
         <section class="panel" data-panel="sono">
           <h2 class="section-title">סונוקאש</h2>
           <div class="gate">
@@ -252,30 +245,24 @@
             <div><label>כמות בערך 1000 ₪</label><input type="number" id="sono_1000" min="0"></div>
           </div>
         </section>
-
         <section class="panel" data-panel="summary">
           <h2 class="section-title">סיכום ושליחה</h2>
           <div class="summary" id="summary"></div>
-          <p class="muted" style="margin-top:12px">השליחה נרשמת בטופס גוגל ובגיליון התשובות של הזמנות אמצעי תדלוק. לא תועבר לעמוד התודה של גוגל.</p>
         </section>
-
         <p class="error" id="formError">יש למלא את השדות החובה לפני ההמשך.</p>
         <div class="actions">
           <button type="button" class="btn btn-ghost" id="prevBtn">חזרה</button>
           <button type="button" class="btn btn-primary" id="nextBtn">המשך</button>
         </div>
       </div>
-
       <div class="success" id="successMessage">
         <h2>ההזמנה נשלחה בהצלחה!</h2>
         <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם. מסמך לחתימה יישלח למייל שצוין.</p>
       </div>
     </div>
   </div>
-
   <form id="gform" action="https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse" method="POST" target="hidden_iframe" style="display:none"></form>
   <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-
 <script src="order.js"></script>
 </body>
 </html>
