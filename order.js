@@ -5,19 +5,22 @@ const PANEL_LABELS = {
   driver: "נהג",
   master: "מאסטר",
   sono: "סונוקאש",
+  shtifo: "שטיפומט",
   summary: "שליחה"
 };
-const PRODUCT_PANELS = ["vehicle","driver","master","sono"];
+const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
   driver: "כרטיס נהג",
   master: "כרטיס מאסטר",
-  sono: "סונוקאש"
+  sono: "סונוקאש",
+  shtifo: "שטיפומט"
 };
 const AMTSEI = ["כרטיס רכב","דלקן א'","דלקן ב (רושם ק\"מ)","דלקן אוריאה","כרטיס אוריאה"];
 const FUEL = ["בנזין 95","בנזין 98","גולדיזל (סולר)","אוריאה"];
 const FUEL_ALL = ["ALL - כללי","בנזין 95","בנזין 98","גולדיזל (סולר)","אוריאה"];
 const VTYPES = ["פרטי","מסחרי","משאית","אוטובוס","אופנוע","אחר"];
+const SHTIFO_VTYPES = ["פרטי","מסחרי","מסחרי גדול","משאית","רכב משא"];
 const SHTIFO = [
   {v:"לא", t:"לא"},
   {v:"1", t:"כן - שטיפה אחת בחודש"},
@@ -62,6 +65,7 @@ let step = 0;
 let submitted = false;
 const vehicleCount = { n: 0 };
 const driverCount = { n: 0 };
+const shtifoCount = { n: 0 };
 function $(sel){ return document.querySelector(sel); }
 function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 function radio(name){
@@ -96,20 +100,28 @@ function sel(name, options, required){
     options.map(o => `<option value="${o}">${o}</option>`).join("") +
     `</select>`;
 }
-function shtifoSel(name){
+function shtifoSel(name, allowNo){
+  const opts = allowNo === false ? SHTIFO.filter(o => o.v !== "לא") : SHTIFO;
   return `<select name="${name}" required>` +
     `<option value="">בחירה</option>` +
-    SHTIFO.map(o => `<option value="${o.v}">${o.t}</option>`).join("") +
+    opts.map(o => `<option value="${o.v}">${o.t}</option>`).join("") +
     `</select>`;
 }
-function addVehicle(){
+function setField(name, value){
+  const el = document.querySelector(`[name="${name}"]`);
+  if (el && value !== undefined && value !== null) el.value = value;
+}
+function addVehicle(preset){
   if (vehicleCount.n >= 10) return;
   const i = vehicleCount.n++;
   const wrap = document.createElement("div");
   wrap.className = "card-block";
   wrap.dataset.v = i;
   wrap.innerHTML = `
-    <h3>רכב / דלקן ${i+1}</h3>
+    <div class="card-head">
+      <h3>רכב / דלקן ${i+1}</h3>
+      <button type="button" class="btn-remove" data-remove="vehicle" data-i="${i}">הסר</button>
+    </div>
     <div class="grid">
       <div>${label("סוג אמצעי תדלוק", true)}${sel("v_amtsei_"+i, AMTSEI, true)}</div>
       <div>${label("מס׳ רכב", true)}<input type="text" name="v_plate_${i}"></div>
@@ -125,16 +137,56 @@ function addVehicle(){
       <div class="span-2">${label("שטיפומט", true)}${shtifoSel("v_shtifo_"+i)}</div>
     </div>`;
   $("#vehiclesList").appendChild(wrap);
+  if (preset) {
+    setField("v_amtsei_"+i, preset.amtsei);
+    setField("v_plate_"+i, preset.plate);
+    setField("v_phone_"+i, preset.phone);
+    setField("v_fuel_"+i, preset.fuel);
+    setField("v_type_"+i, preset.type);
+    setField("v_day_"+i, preset.day);
+    setField("v_month_"+i, preset.month);
+    setField("v_model_"+i, preset.model);
+    setField("v_year_"+i, preset.year);
+    setField("v_driver_"+i, preset.driver);
+    setField("v_dept_"+i, preset.dept);
+    setField("v_shtifo_"+i, preset.shtifo);
+  }
   $("#addVehicle").style.display = vehicleCount.n >= 10 ? "none" : "inline-block";
 }
 function label(t, req){ return `<label>${t}${req?' <span class="req">*</span>':''}</label>`; }
-function addDriver(){
+function addShtifoVehicle(preset){
+  if (shtifoCount.n >= 10) return;
+  const i = shtifoCount.n++;
+  const wrap = document.createElement("div");
+  wrap.className = "card-block";
+  wrap.innerHTML = `
+    <div class="card-head">
+      <h3>רכב לשטיפומט ${i+1}</h3>
+      <button type="button" class="btn-remove" data-remove="shtifo" data-i="${i}">הסר</button>
+    </div>
+    <div class="grid">
+      <div>${label("מס׳ רכב", true)}<input type="text" name="s_plate_${i}"></div>
+      <div>${label("סוג הרכב", true)}${sel("s_type_"+i, SHTIFO_VTYPES, true)}</div>
+      <div class="span-2">${label("כמות שטיפות בחודש", true)}${shtifoSel("s_qty_"+i, false)}</div>
+    </div>`;
+  $("#shtifoList").appendChild(wrap);
+  if (preset) {
+    setField("s_plate_"+i, preset.plate);
+    setField("s_type_"+i, preset.type);
+    setField("s_qty_"+i, preset.qty);
+  }
+  $("#addShtifo").style.display = shtifoCount.n >= 10 ? "none" : "inline-block";
+}
+function addDriver(preset){
   if (driverCount.n >= 2) return;
   const i = driverCount.n++;
   const wrap = document.createElement("div");
   wrap.className = "card-block";
   wrap.innerHTML = `
-    <h3>כרטיס נהג ${i+1}</h3>
+    <div class="card-head">
+      <h3>כרטיס נהג ${i+1}</h3>
+      <button type="button" class="btn-remove" data-remove="driver" data-i="${i}">הסר</button>
+    </div>
     <div class="grid">
       <div>${label("שם הנהג", true)}<input type="text" name="d_name_${i}"></div>
       <div>${label("מס׳ זהות נהג", true)}<input type="text" name="d_id_${i}"></div>
@@ -143,7 +195,64 @@ function addDriver(){
       <div>${label("הגבלת צריכה חודשית בליטרים", true)}<input type="text" name="d_month_${i}"></div>
     </div>`;
   $("#driversList").appendChild(wrap);
+  if (preset) {
+    setField("d_name_"+i, preset.name);
+    setField("d_id_"+i, preset.id);
+    setField("d_fuel_"+i, preset.fuel);
+    setField("d_day_"+i, preset.day);
+    setField("d_month_"+i, preset.month);
+  }
   $("#addDriver").style.display = driverCount.n >= 2 ? "none" : "inline-block";
+}
+function collectVehicles(){
+  const items = [];
+  for (let i=0;i<vehicleCount.n;i++){
+    items.push({
+      amtsei: field("v_amtsei_"+i), plate: field("v_plate_"+i), phone: field("v_phone_"+i),
+      fuel: field("v_fuel_"+i), type: field("v_type_"+i), day: field("v_day_"+i),
+      month: field("v_month_"+i), model: field("v_model_"+i), year: field("v_year_"+i),
+      driver: field("v_driver_"+i), dept: field("v_dept_"+i), shtifo: field("v_shtifo_"+i)
+    });
+  }
+  return items;
+}
+function collectShtifo(){
+  const items = [];
+  for (let i=0;i<shtifoCount.n;i++){
+    items.push({ plate: field("s_plate_"+i), type: field("s_type_"+i), qty: field("s_qty_"+i) });
+  }
+  return items;
+}
+function collectDrivers(){
+  const items = [];
+  for (let i=0;i<driverCount.n;i++){
+    items.push({
+      name: field("d_name_"+i), id: field("d_id_"+i), fuel: field("d_fuel_"+i),
+      day: field("d_day_"+i), month: field("d_month_"+i)
+    });
+  }
+  return items;
+}
+function removeItem(kind, index){
+  if (kind === "vehicle") {
+    const keep = collectVehicles().filter((_, i) => i !== index);
+    $("#vehiclesList").innerHTML = "";
+    vehicleCount.n = 0;
+    keep.forEach(item => addVehicle(item));
+    $("#addVehicle").style.display = vehicleCount.n >= 10 ? "none" : "inline-block";
+  } else if (kind === "shtifo") {
+    const keep = collectShtifo().filter((_, i) => i !== index);
+    $("#shtifoList").innerHTML = "";
+    shtifoCount.n = 0;
+    keep.forEach(item => addShtifoVehicle(item));
+    $("#addShtifo").style.display = shtifoCount.n >= 10 ? "none" : "inline-block";
+  } else if (kind === "driver") {
+    const keep = collectDrivers().filter((_, i) => i !== index);
+    $("#driversList").innerHTML = "";
+    driverCount.n = 0;
+    keep.forEach(item => addDriver(item));
+    $("#addDriver").style.display = driverCount.n >= 2 ? "none" : "inline-block";
+  }
 }
 function field(name){ const el = document.querySelector(`[name="${name}"]`); return el ? el.value.trim() : ""; }
 function validate(){
@@ -183,6 +292,14 @@ function validate(){
   if (panel==="sono") {
     return need(radio("sono_fuel"));
   }
+  if (panel==="shtifo") {
+    if (shtifoCount.n===0) return need(false, "יש להוסיף לפחות רכב אחד לשטיפומט.");
+    for (let i=0;i<shtifoCount.n;i++){
+      const qty = field("s_qty_"+i);
+      if (!field("s_plate_"+i) || !field("s_type_"+i) || !qty || qty==="לא")
+        return need(false, "לכל רכב חובה מספר, סוג, וכמות שטיפות (לא «לא»).");
+    }
+  }
   return true;
 }
 function categoryValue(type){
@@ -199,7 +316,8 @@ function buildSummary(){
     `דלקן/רכב: ${wants("vehicle") ? vehicleCount.n+" פריטים" : "לא"}`,
     `כרטיס נהג: ${wants("driver") ? driverCount.n+" כרטיסים" : "לא"}`,
     `מאסטר: ${wants("master") ? val("master_qty")+" כרטיסים" : "לא"}`,
-    `סונוקאש: ${wants("sono") ? (radio("sono_fuel") || "כן") : "לא"}`
+    `סונוקאש: ${wants("sono") ? (radio("sono_fuel") || "כן") : "לא"}`,
+    `שטיפומט: ${wants("shtifo") ? shtifoCount.n+" רכבים" : "לא"}`
   ];
   $("#summary").innerHTML = lines.join("<br>");
 }
@@ -229,6 +347,10 @@ function pageHistoryValue(type){
   }
   if (includeMaster) pages.push(4);
   if (includeSono) pages.push(15);
+  const includeShtifo = type ? type === "shtifo" : wants("shtifo");
+  if (includeShtifo) {
+    for (let i = 0; i < shtifoCount.n; i++) pages.push(5 + i);
+  }
   return pages.join(",");
 }
 function addCustomerFields(form){
@@ -289,6 +411,35 @@ function addSonoFields(form){
   const denoms = ["sono_100","sono_150","sono_200","sono_250","sono_500","sono_1000"];
   denoms.forEach((id, idx) => addEntry(form, E.sono_denoms[idx], val(id)));
 }
+function mapShtifoTypeToForm(t){
+  const map = {
+    "פרטי": "פרטי",
+    "מסחרי": "מסחרי",
+    "מסחרי גדול": "מסחרי",
+    "משאית": "משאית",
+    "רכב משא": "משאית"
+  };
+  return map[t] || "אחר";
+}
+function addShtifoFields(form){
+  for (let i=0;i<shtifoCount.n;i++){
+    const ids = VEHICLE_ENTRIES[i];
+    const qty = field("s_qty_"+i);
+    const officialType = field("s_type_"+i);
+    addEntry(form, ids[0], "כרטיס רכב");
+    addEntry(form, ids[1], field("s_plate_"+i));
+    addEntry(form, ids[3], "גולדיזל (סולר)");
+    addEntry(form, ids[4], mapShtifoTypeToForm(officialType));
+    addEntry(form, ids[7], officialType);
+    addEntry(form, ids[11], qty);
+    if (ids[12]) {
+      const more = (i < shtifoCount.n-1)
+        ? "כן, הוסף אמצעי תדלוק/רכב נוסף"
+        : "לא, סיים את ההזמנה";
+      addEntry(form, ids[12], more);
+    }
+  }
+}
 function fillFormForType(type){
   const form = $("#gform");
   form.innerHTML = "";
@@ -301,6 +452,7 @@ function fillFormForType(type){
   if (type === "driver") addDriverFields(form);
   if (type === "master") addMasterFields(form);
   if (type === "sono") addSonoFields(form);
+  if (type === "shtifo") addShtifoFields(form);
 }
 function submitToGoogle(){
   const types = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
@@ -332,12 +484,20 @@ document.querySelectorAll('input[name="order_type"]').forEach(el => {
   el.addEventListener("change", () => {
     if (el.value==="vehicle" && el.checked && vehicleCount.n===0) addVehicle();
     if (el.value==="driver" && el.checked && driverCount.n===0) addDriver();
+    if (el.value==="shtifo" && el.checked && shtifoCount.n===0) addShtifoVehicle();
     rebuildPath();
     renderSteps();
   });
 });
-$("#addVehicle").addEventListener("click", addVehicle);
-$("#addDriver").addEventListener("click", addDriver);
+$("#addVehicle").addEventListener("click", () => addVehicle());
+$("#addDriver").addEventListener("click", () => addDriver());
+$("#addShtifo").addEventListener("click", () => addShtifoVehicle());
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("[data-remove]");
+  if (!btn) return;
+  ev.preventDefault();
+  removeItem(btn.dataset.remove, Number(btn.dataset.i));
+});
 $("#prevBtn").addEventListener("click", () => { step = Math.max(0, step-1); renderSteps(); });
 $("#nextBtn").addEventListener("click", () => {
   if (!validate()) return;
