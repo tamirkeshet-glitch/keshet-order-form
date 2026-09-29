@@ -112,7 +112,9 @@ function sel(name, options, required){
   const req = required ? "required" : "";
   return `<select name="${name}" ${req}>` +
     `<option value="">בחירה</option>` +
-    options.map(o => `<option value="${o}">${o}</option>`).join("") +
+    // הערכים עוברים esc: «דלקן ב (רושם ק"מ)» מכיל גרשיים, שסגרו את מאפיין value
+    // באמצע. הערך נקטע ל«דלקן ב (רושם ק», לא נבחר בקליטת אקסל, ונשלח קטוע לגוגל.
+    options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("") +
     `</select>`;
 }
 function shtifoSel(name, allowNo){
