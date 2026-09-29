@@ -24,7 +24,8 @@
       min-height: 100vh;
       padding: 24px 16px 48px;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 760px; margin: 0 auto; transition: max-width .2s; }
+    body.wide .wrap { max-width: 1240px; }
     .brand {
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; margin-bottom: 16px;
@@ -114,6 +115,54 @@
     .error { color: var(--primary); font-size: .85rem; margin-top: 6px; display: none; }
     .gate { margin-bottom: 16px; }
     .muted { color: var(--muted); font-size: .9rem; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .vtable { border-collapse: collapse; width: 100%; min-width: 1180px; font-size: .88rem; }
+    .vtable-narrow { min-width: 520px; }
+    .vtable th {
+      background: #eef1f5; font-weight: 700; font-size: .8rem; padding: 8px 6px;
+      text-align: right; white-space: nowrap; position: sticky; top: 0;
+    }
+    .vtable td { padding: 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+    .vtable tbody tr:nth-child(even) td { background: #fafbfc; }
+    .vtable input, .vtable select { padding: 7px 6px; font-size: .88rem; border-radius: 5px; min-width: 90px; }
+    .vtable select[name^="v_amtsei_"] { min-width: 150px; }
+    .vtable .col-num { width: 34px; text-align: center; color: var(--muted); font-weight: 700; }
+    .vtable .col-act { width: 40px; text-align: center; }
+    .vtable .btn-remove { padding: 4px 8px; }
+    .vtable-read { min-width: 640px; }
+    .vtable-read td { padding: 6px; }
+    .table-foot { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+    .summary-h { font-size: 1rem; margin: 14px 0 6px; }
+    .doc-list { margin: 0 22px 12px 0; line-height: 1.8; }
+    .draft-bar {
+      display: none; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+      margin: 14px 20px 0; padding: 10px 12px; border-radius: 8px; background: #fff8e1; font-size: .9rem;
+    }
+    .draft-bar span { flex: 1 1 220px; }
+    .draft-bar .btn { flex: 0 0 auto; padding: 8px 12px; font-size: .88rem; }
+    .success p + p { margin-top: 10px; }
+    .receipt { display: none; margin: 18px auto 0; max-width: 520px; text-align: right; }
+    .receipt ul { list-style: none; }
+    .receipt li {
+      display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; font-size: .9rem;
+    }
+    .receipt li b { white-space: nowrap; }
+    .rc-ok b { color: var(--ok); }
+    .rc-error b, .rc-missing b { color: var(--primary-dark); }
+    .rc-wait b, .rc-processing b { color: var(--muted); }
+    .receipt-help { display: none; margin-top: 10px; background: #fff5f5; padding: 10px 12px; border-radius: 8px; }
+    .receipt-help .btn { display: block; margin-top: 8px; width: 100%; }
+    .excel-box {
+      border: 1px dashed #ccd3db; border-radius: 10px; padding: 14px; margin-bottom: 16px; background: #fff;
+    }
+    .excel-box p { margin: 6px 0 10px; line-height: 1.6; }
+    .excel-box a { color: var(--primary); font-weight: 700; }
+    .excel-upload { display: inline-block; margin: 0; }
+    .import-result { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: .9rem; line-height: 1.6; }
+    .import-result.ok { background: #edf7ee; color: var(--ok); }
+    .import-result.bad { background: #fff5f5; color: var(--primary-dark); }
+    .import-result ul { margin: 6px 20px 0 0; }
     .summary { background: #f7f8fa; border-radius: 10px; padding: 14px 16px; line-height: 1.7; }
     .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 640px) { .pick-grid { grid-template-columns: 1fr; } }
@@ -150,6 +199,7 @@
         <h1>טופס הזמנת אמצעי תדלוק</h1>
         <p>קשת יזמות עסקית / סונול דלקן · ללקוחות קיימים. מילוי הטופס אינו מחייב התחברות לחשבון גוגל. בשלב הבא בוחרים מה להזמין — ועוברים רק למסכים הרלוונטיים.</p>
       </div>
+      <div class="draft-bar" id="draftBar"></div>
       <div class="steps" id="steps"></div>
       <div class="body" id="wizard">
 
@@ -191,7 +241,7 @@
             <label class="pick">
               <input type="checkbox" name="order_type" value="vehicle">
               <strong>דלקן / כרטיס רכב</strong>
-              <span>עד 10 רכבים, סוג דלק, הגבלות ושטיפומט</span>
+              <span>הזנה ידנית או העלאת קובץ אקסל · סוג דלק, הגבלות ושטיפומט</span>
             </label>
             <label class="pick">
               <input type="checkbox" name="order_type" value="driver">
@@ -218,9 +268,40 @@
 
         <section class="panel" data-panel="vehicle">
           <h2 class="section-title">דלקן / כרטיס רכב</h2>
-          <div id="vehiclesList"></div>
-          <button type="button" class="btn btn-add" id="addVehicle">+ הוסף רכב / דלקן</button>
-          <p class="muted" style="margin-top:8px">עד 10 רכבים.</p>
+          <div class="excel-box">
+            <strong>הרבה רכבים? אפשר להעלות קובץ אקסל במקום להקליד</strong>
+            <p class="muted">1. מורידים את <a href="order-template.xlsx" download>תבנית ההזמנה (Excel)</a> &nbsp;2. ממלאים שורה לכל רכב &nbsp;3. מעלים את הקובץ כאן. הרכבים ייכנסו לטופס, ואפשר לתקן אותם לפני השליחה.</p>
+            <label class="btn btn-add excel-upload">העלאת קובץ אקסל
+              <input type="file" id="excelFile" accept=".xlsx,.xls" hidden>
+            </label>
+            <div class="import-result" id="excelResult"></div>
+          </div>
+          <div class="table-wrap">
+            <table class="vtable">
+              <thead><tr>
+                <th class="col-num">#</th>
+                <th>סוג אמצעי תדלוק <span class="req">*</span></th>
+                <th>מס׳ רכב <span class="req">*</span></th>
+                <th>סוג דלק <span class="req">*</span></th>
+                <th>סוג הרכב <span class="req">*</span></th>
+                <th>שטיפומט <span class="req">*</span></th>
+                <th>ליטרים ליום</th>
+                <th>ליטרים לחודש</th>
+                <th>טלפון נהג</th>
+                <th>שם נהג</th>
+                <th>דגם רכב</th>
+                <th>שנת יצור</th>
+                <th>קוד / מחלקה</th>
+                <th class="col-act"></th>
+              </tr></thead>
+              <tbody id="vehiclesList"></tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <button type="button" class="btn btn-add" id="addVehicle">+ הוסף שורה</button>
+            <span class="muted" id="vehicleCountNote"></span>
+          </div>
+          <p class="muted" style="margin-top:8px">עד 10 רכבים בטופס. בהזמנה גדולה יותר, או עם כמה סוגי אמצעי תדלוק, ההזמנה תפוצל אוטומטית לכמה טפסים, וכל אחד יישלח לחתימה בנפרד.</p>
         </section>
 
         <section class="panel" data-panel="driver">
@@ -261,9 +342,22 @@
         <section class="panel" data-panel="shtifo">
           <h2 class="section-title">עדכון שטיפומט לרכב</h2>
           <p class="muted" style="margin-bottom:14px">ללקוח קיים עם הסכם דלקן. ממלאים את הרכבים לצירוף להסדר הרחיצה. לחתימה יישלח קובץ אחד: טופס שטיפומט + הסכם מאי 2022, עם שתי חתימות לקוח.</p>
-          <div id="shtifoList"></div>
-          <button type="button" class="btn btn-add" id="addShtifo">+ הוסף רכב לשטיפומט</button>
-          <p class="muted" style="margin-top:8px">עד 10 רכבים. מחיר שטיפה לפי סוג הרכב בהסכם (לא כולל מע״מ): פרטי 39 ₪ · מסחרי 45 ₪ · מסחרי גדול 69 ₪ · משאית 83 ₪ · רכב משא 128 ₪.</p>
+          <div class="table-wrap">
+            <table class="vtable vtable-narrow">
+              <thead><tr>
+                <th class="col-num">#</th>
+                <th>מס׳ רכב <span class="req">*</span></th>
+                <th>סוג הרכב <span class="req">*</span></th>
+                <th>כמות שטיפות בחודש <span class="req">*</span></th>
+                <th class="col-act"></th>
+              </tr></thead>
+              <tbody id="shtifoList"></tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <button type="button" class="btn btn-add" id="addShtifo">+ הוסף שורה</button>
+          </div>
+          <p class="muted" style="margin-top:8px">כל הרכבים ייכנסו לטופס שטיפומט אחד. מחיר שטיפה לפי סוג הרכב בהסכם (לא כולל מע״מ): פרטי 39 ₪ · מסחרי 45 ₪ · מסחרי גדול 69 ₪ · משאית 83 ₪ · רכב משא 128 ₪.</p>
         </section>
 
         <section class="panel" data-panel="sono">
@@ -299,13 +393,16 @@
 
       <div class="success" id="successMessage">
         <h2>ההזמנה נשלחה בהצלחה!</h2>
-        <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם. מסמך לחתימה יישלח למייל שצוין.</p>
+        <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם.</p>
+        <p id="successDocs"></p>
+        <div class="receipt" id="receipt">
+          <ul id="receiptList"></ul>
+          <p class="receipt-help" id="receiptHelp"></p>
+        </div>
       </div>
     </div>
   </div>
 
-  <form id="gform" action="https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse" method="POST" target="hidden_iframe" style="display:none"></form>
-  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
 
 <script src="order.js"></script>
 <!-- deploy-2026-09-23-combined-fuel -->
