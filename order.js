@@ -342,6 +342,7 @@ function buildSummary(){
       `<th>דלק</th><th>סוג רכב</th><th>שטיפומט</th><th>ליטר לחודש</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   $("#summary").innerHTML = `<div>${customer}</div><h3 class="summary-h">${title}</h3><ol class="doc-list">${list}</ol>${vehicles}`;
+  $("#summary").querySelectorAll("table.vtable").forEach(labelTableRows);
 }
 function addHidden(form, name, value){
   if (value===undefined || value===null || String(value)==="") return;
@@ -840,6 +841,21 @@ function updateSonoTotals(){
   $("#sonoTotal").textContent = total.toLocaleString("he-IL") + " ₪";
 }
 document.querySelectorAll("[data-denom]").forEach(el => el.addEventListener("input", updateSonoTotals));
+// מעתיק את טקסט הכותרת של כל עמודה ל-data-label של התא, כדי שבטלפון
+// (שם הטבלה מוצגת ככרטיסים ובלי שורת כותרת) כל שדה יופיע עם שמו.
+// MutationObserver כי שורות נוספות בכל רגע: הוספה ידנית, אקסל, טיוטה, הסרה.
+function labelTableRows(table){
+  const heads = [...table.querySelectorAll("thead th")].map(th => th.textContent.trim());
+  table.querySelectorAll("tbody tr").forEach(tr => {
+    [...tr.children].forEach((td, k) => {
+      if (!td.hasAttribute("data-label") && heads[k] !== undefined) td.setAttribute("data-label", heads[k]);
+    });
+  });
+}
+document.querySelectorAll("table.vtable").forEach(table => {
+  labelTableRows(table);
+  new MutationObserver(() => labelTableRows(table)).observe(table, {childList: true, subtree: true});
+});
 // ---- טיוטה ----
 // נשמרת בדפדפן של הלקוח בלבד (localStorage), כדי שרענון או סגירה בטעות
 // לא ימחקו הזמנה ארוכה. נמחקת ברגע השליחה. הגישה עטופה ב-try כי בגלישה

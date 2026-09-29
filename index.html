@@ -140,6 +140,50 @@
     .vtable .btn-remove { padding: 4px 8px; }
     .vtable-read { min-width: 640px; }
     .vtable-read td { padding: 6px; }
+    /* טלפון: כל שורה בטבלה הופכת לכרטיס, שדה בשורה משלו עם התווית מהכותרת
+       (data-label, נקבע ב-labelTableRows ב-order.js). בלי גלילה הצידה. */
+    @media (max-width: 760px) {
+      .table-wrap { overflow: visible; border: none; background: transparent; }
+      .vtable, .vtable-narrow, .vtable-mid, .vtable-read { min-width: 0; }
+      .vtable thead { display: none; }
+      .vtable, .vtable tbody, .vtable tfoot, .vtable tr, .vtable td { display: block; width: 100%; }
+      .vtable tbody tr {
+        position: relative; border: 1px solid var(--line); border-radius: 10px;
+        background: #fff; padding: 8px 12px 10px; margin-bottom: 12px;
+      }
+      .vtable tbody tr:nth-child(even) td { background: transparent; }
+      .vtable td {
+        border: none; padding: 5px 0;
+        display: grid; grid-template-columns: 38% 1fr; align-items: center; gap: 8px;
+      }
+      .vtable td::before { content: attr(data-label); font-weight: 600; font-size: .85rem; color: var(--ink); }
+      .vtable td:not([data-label])::before, .vtable td[data-label=""]::before { content: none; }
+      .vtable input, .vtable select, .vtable select[name^="v_amtsei_"] { min-width: 0; width: 100%; font-size: 16px; padding: 10px; }
+      .vtable td.col-num { width: auto;
+        display: block; text-align: right; font-size: .95rem; color: var(--ink);
+        padding: 2px 0 6px; border-bottom: 1px dashed var(--line); margin-bottom: 4px;
+      }
+      .vtable td.col-num::before { content: "שורה "; font-weight: 700; }
+      .vtable td.col-act { position: absolute; top: 6px; left: 8px; width: auto; display: block; padding: 0; }
+      .vtable td.col-act::before { content: none; }
+      .vtable .btn-remove { padding: 6px 12px; font-size: .9rem; }
+      .vtable tfoot tr { border-radius: 10px; overflow: hidden; }
+      .vtable tfoot td { display: flex; justify-content: space-between; }
+      .vtable tfoot td[colspan] { display: none; }
+      .vtable tfoot td#sonoTotal::before { content: "סה״כ הזמנה"; }
+      .sono-table td:first-child { font-size: 1rem; }
+      .table-foot .btn-add { width: 100%; }
+      .excel-upload { width: 100%; text-align: center; }
+      /* סונוקאש: שלוש עמודות צרות נכנסות ברוחב טלפון, ולכן נשאר טבלה קומפקטית */
+      .sono-table { display: table; border: 1px solid var(--line); border-radius: 10px; }
+      .sono-table thead { display: table-header-group; }
+      .sono-table tbody { display: table-row-group; }
+      .sono-table tfoot { display: table-footer-group; }
+      .sono-table tr, .sono-table tbody tr { display: table-row; border: none; padding: 0; margin: 0; border-radius: 0; }
+      .sono-table td, .sono-table tfoot td, .sono-table tfoot td[colspan] { display: table-cell; width: auto; padding: 6px; border-top: 1px solid var(--line); }
+      .sono-table td::before, .sono-table tfoot td#sonoTotal::before { content: none; }
+      .sono-table input { width: 90px; }
+    }
     .table-foot { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
     .summary-h { font-size: 1rem; margin: 14px 0 6px; }
     .doc-list { margin: 0 22px 12px 0; line-height: 1.8; }
