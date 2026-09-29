@@ -71,6 +71,12 @@ const shtifoCount = { n: 0 };
 // לכמה שליחות, כל אחת עד 10 רכבים ורק מסוג אמצעי תדלוק אחד.
 const FORM_VEHICLE_SLOTS = 10;
 const MAX_VEHICLES = 200;
+// שטיפומט נשאר טופס אחד לחתימה גם מעל 10 רכבים: 10 הראשונים בסלוטים הרגילים,
+// והשאר נארזים בשדה «קוד / שם מחלקה» של סלוט 10 (לא בשימוש בשטיפומט),
+// בפורמט "מספר|סוג|כמות" מופרד ב-";". Apps Script פורס אותם בחזרה
+// (collectShtifomatItems ב-intake_processing_automation.gs).
+const MAX_SHTIFO = 100;
+const SHTIFO_EXTRA_PREFIX = "SHTIFO_EXTRA:";
 function $(sel){ return document.querySelector(sel); }
 function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 function radio(name){
@@ -160,7 +166,7 @@ function addVehicle(preset){
 }
 function label(t, req){ return `<label>${t}${req?' <span class="req">*</span>':''}</label>`; }
 function addShtifoVehicle(preset){
-  if (shtifoCount.n >= 10) return;
+  if (shtifoCount.n >= MAX_SHTIFO) return;
   const i = shtifoCount.n++;
   const wrap = document.createElement("div");
   wrap.className = "card-block";
@@ -180,7 +186,7 @@ function addShtifoVehicle(preset){
     setField("s_type_"+i, preset.type);
     setField("s_qty_"+i, preset.qty);
   }
-  $("#addShtifo").style.display = shtifoCount.n >= 10 ? "none" : "inline-block";
+  $("#addShtifo").style.display = shtifoCount.n >= MAX_SHTIFO ? "none" : "inline-block";
 }
 function addDriver(preset){
   if (driverCount.n >= 2) return;
@@ -250,7 +256,7 @@ function removeItem(kind, index){
     $("#shtifoList").innerHTML = "";
     shtifoCount.n = 0;
     keep.forEach(item => addShtifoVehicle(item));
-    $("#addShtifo").style.display = shtifoCount.n >= 10 ? "none" : "inline-block";
+    $("#addShtifo").style.display = shtifoCount.n >= MAX_SHTIFO ? "none" : "inline-block";
   } else if (kind === "driver") {
     const keep = collectDrivers().filter((_, i) => i !== index);
     $("#driversList").innerHTML = "";
@@ -364,7 +370,7 @@ function pageHistoryValue(type, vehiclesInJob){
   if (includeSono) pages.push(15);
   const includeShtifo = type ? type === "shtifo" : wants("shtifo");
   if (includeShtifo) {
-    for (let i = 0; i < shtifoCount.n; i++) pages.push(5 + i);
+    for (let i = 0; i < Math.min(shtifoCount.n, FORM_VEHICLE_SLOTS); i++) pages.push(5 + i);
   }
   return pages.join(",");
 }
@@ -452,7 +458,8 @@ function mapShtifoTypeToForm(t){
   return map[t] || "אחר";
 }
 function addShtifoFields(form){
-  for (let i=0;i<shtifoCount.n;i++){
+  const slots = Math.min(shtifoCount.n, FORM_VEHICLE_SLOTS);
+  for (let i=0;i<slots;i++){
     const ids = VEHICLE_ENTRIES[i];
     const qty = field("s_qty_"+i);
     const officialType = field("s_type_"+i);
@@ -463,11 +470,19 @@ function addShtifoFields(form){
     addEntry(form, ids[7], officialType);
     addEntry(form, ids[11], qty);
     if (ids[12]) {
-      const more = (i < shtifoCount.n-1)
+      const more = (i < slots-1)
         ? "כן, הוסף אמצעי תדלוק/רכב נוסף"
         : "לא, סיים את ההזמנה";
       addEntry(form, ids[12], more);
     }
+  }
+  if (shtifoCount.n > FORM_VEHICLE_SLOTS) {
+    const extra = [];
+    for (let i=FORM_VEHICLE_SLOTS;i<shtifoCount.n;i++){
+      const clean = t => field(t).replace(/[|;]/g, " ");
+      extra.push([clean("s_plate_"+i), clean("s_type_"+i), clean("s_qty_"+i)].join("|"));
+    }
+    addEntry(form, VEHICLE_ENTRIES[FORM_VEHICLE_SLOTS-1][10], SHTIFO_EXTRA_PREFIX + extra.join(";"));
   }
 }
 function buildJobForm(job){
@@ -510,6 +525,7 @@ function submitToGoogle(){
   });
   submitted = true;
   $("#nextBtn").disabled = true;
+  clearDraft();
   let i = 0;
   function sendNext(){
     $("#nextBtn").textContent = jobs.length > 1 ? `שולח הזמנה ${i+1} מתוך ${jobs.length}...` : "שולח הזמנה...";
@@ -518,12 +534,16 @@ function submitToGoogle(){
     if (i < jobs.length) {
       setTimeout(sendNext, 1200);
     } else {
-      setTimeout(showSuccess, 900);
+      setTimeout(() => showSuccess(jobs.length), 900);
     }
   }
   sendNext();
 }
-function showSuccess(){
+function showSuccess(docCount){
+  const email = esc(val("email"));
+  $("#successDocs").innerHTML = docCount > 1
+    ? `ההזמנה פוצלה ל-<b>${docCount} טפסים נפרדים</b>, ולכן יגיעו אל <b>${email}</b> ${docCount} מסמכים נפרדים לחתימה. יש לחתום על כל אחד מהם. זו לא כפילות.`
+    : `מסמך לחתימה יישלח אל <b>${email}</b>.`;
   $("#wizard").style.display = "none";
   $("#steps").style.display = "none";
   document.querySelector(".head").style.display = "none";
@@ -673,6 +693,7 @@ async function importExcel(file){
   const split = batches.length > 1
     ? `<br>ההזמנה תישלח כ-${batches.length} טפסים נפרדים (עד ${FORM_VEHICLE_SLOTS} רכבים בטופס, טופס נפרד לכל סוג אמצעי תדלוק).`
     : "";
+  saveDraft();
   showImportResult(true, `<b>נקלטו ${items.length} רכבים מהקובץ.</b> אפשר לבדוק ולתקן אותם למטה לפני ההמשך.${split}`);
 }
 $("#excelFile").addEventListener("change", (ev) => {
@@ -707,4 +728,65 @@ $("#nextBtn").addEventListener("click", () => {
   if (currentPanel()==="summary") buildSummary();
   renderSteps();
 });
+// ---- טיוטה ----
+// נשמרת בדפדפן של הלקוח בלבד (localStorage), כדי שרענון או סגירה בטעות
+// לא ימחקו הזמנה ארוכה. נמחקת ברגע השליחה. הגישה עטופה ב-try כי בגלישה
+// פרטית או עם חסימת עוגיות localStorage זורק שגיאה.
+const DRAFT_KEY = "keshet-order-draft-v1";
+const DRAFT_FIELDS = ["company","hp","phone","address","email","sig1_name",
+  "master_qty","master_fuel","master_day","master_month",
+  "sono_100","sono_150","sono_200","sono_250","sono_500","sono_1000"];
+let draftTimer = null;
+function saveDraft(){
+  if (submitted) return;
+  const d = {
+    saved: Date.now(), step,
+    fields: Object.fromEntries(DRAFT_FIELDS.map(id => [id, val(id)])),
+    types: selectedTypes(), sono_fuel: radio("sono_fuel"),
+    vehicles: collectVehicles(), drivers: collectDrivers(), shtifo: collectShtifo()
+  };
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (e) {}
+}
+function scheduleDraft(){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 400);
+}
+function clearDraft(){
+  clearTimeout(draftTimer);
+  try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+}
+function readDraft(){
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (e) { return null; }
+}
+function restoreDraft(d){
+  Object.entries(d.fields || {}).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+  document.querySelectorAll('input[name="order_type"]').forEach(el => { el.checked = (d.types || []).includes(el.value); });
+  if (d.sono_fuel) { const r = document.querySelector(`input[name="sono_fuel"][value="${d.sono_fuel}"]`); if (r) r.checked = true; }
+  (d.vehicles || []).forEach(it => addVehicle(it));
+  (d.drivers || []).forEach(it => addDriver(it));
+  (d.shtifo || []).forEach(it => addShtifoVehicle(it));
+  if (wants("vehicle") && vehicleCount.n === 0) addVehicle();
+  if (wants("driver") && driverCount.n === 0) addDriver();
+  if (wants("shtifo") && shtifoCount.n === 0) addShtifoVehicle();
+  rebuildPath();
+  step = Math.min(d.step || 0, path.length - 1);
+  renderSteps();
+}
+function offerDraft(){
+  const d = readDraft();
+  if (!d || !d.fields) return;
+  const when = new Date(d.saved).toLocaleString("he-IL", {dateStyle:"short", timeStyle:"short"});
+  const who = d.fields.company ? ` של «${esc(d.fields.company)}»` : "";
+  const bar = $("#draftBar");
+  bar.innerHTML = `<span>נמצאה הזמנה שלא נשלחה${who} (נשמרה ${esc(when)}).</span>` +
+    `<button type="button" class="btn btn-primary" id="draftResume">להמשיך ממנה</button>` +
+    `<button type="button" class="btn btn-ghost" id="draftDiscard">להתחיל מחדש</button>`;
+  bar.style.display = "flex";
+  $("#draftResume").addEventListener("click", () => { bar.style.display = "none"; restoreDraft(d); });
+  $("#draftDiscard").addEventListener("click", () => { bar.style.display = "none"; clearDraft(); });
+}
+$("#wizard").addEventListener("input", scheduleDraft);
+$("#wizard").addEventListener("change", scheduleDraft);
+$("#wizard").addEventListener("click", (ev) => { if (ev.target.closest("button")) scheduleDraft(); });
 renderSteps();
+offerDraft();

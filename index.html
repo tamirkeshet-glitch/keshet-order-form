@@ -114,6 +114,13 @@
     .error { color: var(--primary); font-size: .85rem; margin-top: 6px; display: none; }
     .gate { margin-bottom: 16px; }
     .muted { color: var(--muted); font-size: .9rem; }
+    .draft-bar {
+      display: none; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+      margin: 14px 20px 0; padding: 10px 12px; border-radius: 8px; background: #fff8e1; font-size: .9rem;
+    }
+    .draft-bar span { flex: 1 1 220px; }
+    .draft-bar .btn { flex: 0 0 auto; padding: 8px 12px; font-size: .88rem; }
+    .success p + p { margin-top: 10px; }
     .excel-box {
       border: 1px dashed #ccd3db; border-radius: 10px; padding: 14px; margin-bottom: 16px; background: #fff;
     }
@@ -160,6 +167,7 @@
         <h1>טופס הזמנת אמצעי תדלוק</h1>
         <p>קשת יזמות עסקית / סונול דלקן · ללקוחות קיימים. מילוי הטופס אינו מחייב התחברות לחשבון גוגל. בשלב הבא בוחרים מה להזמין — ועוברים רק למסכים הרלוונטיים.</p>
       </div>
+      <div class="draft-bar" id="draftBar"></div>
       <div class="steps" id="steps"></div>
       <div class="body" id="wizard">
 
@@ -281,7 +289,7 @@
           <p class="muted" style="margin-bottom:14px">ללקוח קיים עם הסכם דלקן. ממלאים את הרכבים לצירוף להסדר הרחיצה. לחתימה יישלח קובץ אחד: טופס שטיפומט + הסכם מאי 2022, עם שתי חתימות לקוח.</p>
           <div id="shtifoList"></div>
           <button type="button" class="btn btn-add" id="addShtifo">+ הוסף רכב לשטיפומט</button>
-          <p class="muted" style="margin-top:8px">עד 10 רכבים. מחיר שטיפה לפי סוג הרכב בהסכם (לא כולל מע״מ): פרטי 39 ₪ · מסחרי 45 ₪ · מסחרי גדול 69 ₪ · משאית 83 ₪ · רכב משא 128 ₪.</p>
+          <p class="muted" style="margin-top:8px">כל הרכבים ייכנסו לטופס שטיפומט אחד. מחיר שטיפה לפי סוג הרכב בהסכם (לא כולל מע״מ): פרטי 39 ₪ · מסחרי 45 ₪ · מסחרי גדול 69 ₪ · משאית 83 ₪ · רכב משא 128 ₪.</p>
         </section>
 
         <section class="panel" data-panel="sono">
@@ -317,7 +325,8 @@
 
       <div class="success" id="successMessage">
         <h2>ההזמנה נשלחה בהצלחה!</h2>
-        <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם. מסמך לחתימה יישלח למייל שצוין.</p>
+        <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם.</p>
+        <p id="successDocs"></p>
       </div>
     </div>
   </div>
