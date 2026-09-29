@@ -423,21 +423,32 @@ function orderedVehicles(){
     shtifo: withDefault(v.shtifo, DEFAULT_SHTIFO)
   });
   return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [withLimits(v)] : [
-    withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)"})),
-    // לאוריאה הגבלה נפרדת משלה, לא של הגולדיזל
+    withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)", pairNext: true})),
+    // לאוריאה הגבלה נפרדת משלה, לא של הגולדיזל. group = האמצעי של הגולדיזל,
+    // כדי ששורת האוריאה תישאר באותו טופס ובאותו PDF (תמיר, 29/09)
     withLimits(Object.assign({}, v, {fuel: "אוריאה", amtsei: ureaAmtsei(v.amtsei), shtifo: "לא",
-      day: v.uday, month: v.umonth}))
+      day: v.uday, month: v.umonth, group: v.amtsei}))
   ]);
 }
 function vehicleBatches(){
   const groups = new Map();
   orderedVehicles().forEach(v => {
-    if (!groups.has(v.amtsei)) groups.set(v.amtsei, []);
-    groups.get(v.amtsei).push(v);
+    const key = v.group || v.amtsei;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
   });
+  // עד 10 שורות בטופס, בלי להפריד זוג גולדיזל/אוריאה בין שני טפסים
   const batches = [];
   groups.forEach(list => {
-    for (let k = 0; k < list.length; k += FORM_VEHICLE_SLOTS) batches.push(list.slice(k, k + FORM_VEHICLE_SLOTS));
+    let cur = [];
+    list.forEach((v, k) => {
+      const need = v.pairNext ? 2 : 1;
+      if (cur.length && (cur.length + need > FORM_VEHICLE_SLOTS) && !(k > 0 && list[k-1].pairNext)) {
+        batches.push(cur); cur = [];
+      }
+      cur.push(v);
+    });
+    if (cur.length) batches.push(cur);
   });
   return batches;
 }
