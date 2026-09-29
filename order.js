@@ -143,19 +143,19 @@ function addVehicle(preset){
   wrap.dataset.v = i;
   wrap.innerHTML = `
     <td class="col-num">${i+1}</td>
-    <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
     <td><input type="text" name="v_plate_${i}"></td>
     <td>${sel("v_fuel_"+i, FUEL, true)}</td>
-    <td>${sel("v_type_"+i, VTYPES, true)}</td>
-    <td>${shtifoSel("v_shtifo_"+i)}</td>
+    <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
+    <td>${sel("v_type_"+i, VTYPES)}</td>
+    <td><input type="text" name="v_model_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="v_year_${i}"></td>
     <td><input type="text" inputmode="numeric" name="v_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
     <td><input type="text" inputmode="numeric" name="v_month_${i}" placeholder="${DEFAULT_MONTH_L}"></td>
     <td><input type="text" inputmode="numeric" name="v_uday_${i}" placeholder="${DEFAULT_DAY_L}" disabled></td>
     <td><input type="text" inputmode="numeric" name="v_umonth_${i}" placeholder="${DEFAULT_MONTH_L}" disabled></td>
     <td><input type="tel" name="v_phone_${i}"></td>
     <td><input type="text" name="v_driver_${i}"></td>
-    <td><input type="text" name="v_model_${i}"></td>
-    <td><input type="text" inputmode="numeric" name="v_year_${i}"></td>
+    <td>${shtifoSel("v_shtifo_"+i)}</td>
     <td><input type="text" name="v_dept_${i}"></td>
     <td class="col-act"><button type="button" class="btn-remove" data-remove="vehicle" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#vehiclesList").appendChild(wrap);
@@ -300,8 +300,8 @@ function validate(){
   if (panel==="vehicle") {
     if (vehicleCount.n===0) return need(false);
     for (let i=0;i<vehicleCount.n;i++){
-      if (!field("v_amtsei_"+i) || !field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_type_"+i) || !field("v_shtifo_"+i))
-        return need(false);
+      if (!field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_amtsei_"+i) || !field("v_phone_"+i))
+        return need(false, `ברכב ${i+1} חסר אחד משדות החובה: מס׳ רכב, סוג דלק, סוג אמצעי תדלוק, טלפון נהג.`);
     }
   }
   if (panel==="driver") {
@@ -349,10 +349,10 @@ function buildSummary(){
   let vehicles = "";
   if (wants("vehicle") && vehicleCount.n) {
     const rows = orderedVehicles().map((v, k) =>
-      `<tr><td>${k+1}</td><td>${esc(v.amtsei)}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td>` +
-      `<td>${esc(v.type)}</td><td>${esc(v.shtifo)}</td><td>${esc(v.month)}</td></tr>`).join("");
-    vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>אמצעי</th><th>מס׳ רכב</th>` +
-      `<th>דלק</th><th>סוג רכב</th><th>שטיפומט</th><th>ליטר לחודש</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      `<tr><td>${k+1}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td><td>${esc(v.amtsei)}</td>` +
+      `<td>${esc(v.type)}</td><td>${esc(v.day)}</td><td>${esc(v.month)}</td><td>${esc(v.phone)}</td><td>${esc(v.shtifo)}</td></tr>`).join("");
+    vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>מס׳ רכב</th><th>דלק</th>` +
+      `<th>אמצעי</th><th>סוג רכב</th><th>ליטר ליום</th><th>ליטר לחודש</th><th>טלפון נהג</th><th>שטיפומט</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   $("#summary").innerHTML = `<div>${customer}</div><h3 class="summary-h">${title}</h3><ol class="doc-list">${list}</ol>${vehicles}`;
   $("#summary").querySelectorAll("table.vtable").forEach(labelTableRows);
@@ -409,13 +409,18 @@ const DIESEL_UREA = "גולדיזל + אוריאה";
 const DEFAULT_DAY_L = "70";
 const DEFAULT_MONTH_L = "800";
 function withDefault(v, d){ return v ? v : d; }
+// «סוג הרכב» ו«שטיפומט» הם שאלות חובה בטופס גוגל (build_intake_form), ושליחה
+// בלי ערך בהן נדחית כולה בלי שגיאה גלויה. אצל הלקוח הם רשות, ולכן ריק נשלח כך:
+const DEFAULT_VTYPE = "אחר";
+const DEFAULT_SHTIFO = "לא";
 function ureaAmtsei(amtsei){
   if (amtsei.indexOf("אוריאה") !== -1) return amtsei;
   return amtsei.indexOf("דלקן") !== -1 ? "דלקן אוריאה" : "כרטיס אוריאה";
 }
 function orderedVehicles(){
   const withLimits = v => Object.assign({}, v, {
-    day: withDefault(v.day, DEFAULT_DAY_L), month: withDefault(v.month, DEFAULT_MONTH_L)
+    day: withDefault(v.day, DEFAULT_DAY_L), month: withDefault(v.month, DEFAULT_MONTH_L),
+    type: withDefault(v.type, DEFAULT_VTYPE), shtifo: withDefault(v.shtifo, DEFAULT_SHTIFO)
   });
   return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [withLimits(v)] : [
     withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)"})),
@@ -693,20 +698,20 @@ function showSuccess(docCount){
 // הכותרות זהות ל-scripts/make_template.py. ההתאמה לפי שם הכותרת (לא לפי מיקום),
 // כדי שעמודה שהלקוח הזיז או הוסיף לא תשבש את הקריאה.
 const EXCEL_COLUMNS = [
-  {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
   {key:"plate",  header:"מס׳ רכב", required:true},
-  {key:"phone",  header:"מס׳ טלפון נהג"},
   {key:"fuel",   header:"סוג דלק", list:FUEL, required:true},
-  {key:"type",   header:"סוג הרכב", list:VTYPES, required:true},
+  {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
+  {key:"type",   header:"סוג הרכב", list:VTYPES},
+  {key:"model",  header:"דגם רכב"},
+  {key:"year",   header:"שנת יצור"},
   {key:"day",    header:"הגבלה בליטרים ליום"},
   {key:"month",  header:"הגבלה בליטרים לחודש"},
   {key:"uday",   header:"הגבלת אוריאה ליום"},
   {key:"umonth", header:"הגבלת אוריאה לחודש"},
-  {key:"model",  header:"דגם רכב"},
-  {key:"year",   header:"שנת יצור"},
+  {key:"phone",  header:"מס׳ טלפון נהג", required:true},
   {key:"driver", header:"שם נהג"},
-  {key:"dept",   header:"קוד / שם מחלקה"},
-  {key:"shtifo", header:"שטיפומט", list:SHTIFO.map(o => o.v)}
+  {key:"shtifo", header:"שטיפומט", list:SHTIFO.map(o => o.v)},
+  {key:"dept",   header:"קוד / שם מחלקה"}
 ];
 const XLSX_URL = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
 // גרש וגרשיים עבריים ולטיניים מתחלפים בהקלדה ובהעתקה מוורד, ולכן משווים אחרי נרמול
