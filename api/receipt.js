@@ -98,7 +98,8 @@ module.exports = async (req, res) => {
       lower: ["client_id","client_secret","refresh_token"].map(k => k + ":" + (process.env[k] || "").length).join(","),
       idLooksRight: envOf("client_id").endsWith(".apps.googleusercontent.com"),
       secretLooksRight: envOf("client_secret").startsWith("GOCSPX-"),
-      tokenLooksRight: envOf("refresh_token").startsWith("1//")
+      tokenLooksRight: envOf("refresh_token").startsWith("1//"),
+      names: Object.keys(process.env).filter(k => /google|token|client|secret|refresh/i.test(k))
     };
     res.status(502).json({ok: false, error: "upstream", shape, stage: /^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
   }
