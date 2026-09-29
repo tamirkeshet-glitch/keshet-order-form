@@ -9,10 +9,10 @@ const PANEL_LABELS = {
   summary: "שליחה"
 };
 const GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse";
-// פריסת Apps Script נפרדת (גישה: Anyone, גם אנונימי) שעונה אם השורות הגיעו
-// לגיליון - ר' orderStatusJson_ ב-intake_processing_automation.gs.
-// ריק = בלי בדיקת קבלה (הודעת הצלחה כמו קודם).
-const STATUS_URL = "";
+// נקודת קצה שעונה אם השורות הגיעו
+// לגיליון ועובדו.
+// הפונקציה ב-api/receipt.js (Vercel). ריק = בלי בדיקת קבלה (הודעת הצלחה כמו קודם).
+const STATUS_URL = "/api/receipt";
 const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
