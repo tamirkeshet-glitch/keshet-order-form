@@ -146,7 +146,7 @@ function addVehicle(preset){
     <td><input type="text" name="v_plate_${i}"></td>
     <td>${sel("v_fuel_"+i, FUEL, true)}</td>
     <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
-    <td>${sel("v_type_"+i, VTYPES)}</td>
+    <td>${sel("v_type_"+i, VTYPES, true)}</td>
     <td><input type="text" name="v_model_${i}"></td>
     <td><input type="text" inputmode="numeric" name="v_year_${i}"></td>
     <td><input type="text" inputmode="numeric" name="v_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
@@ -300,8 +300,8 @@ function validate(){
   if (panel==="vehicle") {
     if (vehicleCount.n===0) return need(false);
     for (let i=0;i<vehicleCount.n;i++){
-      if (!field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_amtsei_"+i) || !field("v_phone_"+i))
-        return need(false, `ברכב ${i+1} חסר אחד משדות החובה: מס׳ רכב, סוג דלק, סוג אמצעי תדלוק, טלפון נהג.`);
+      if (!field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_amtsei_"+i) || !field("v_type_"+i) || !field("v_phone_"+i))
+        return need(false, `ברכב ${i+1} חסר אחד משדות החובה: מס׳ רכב, סוג דלק, סוג אמצעי תדלוק, סוג הרכב, טלפון נהג.`);
     }
   }
   if (panel==="driver") {
@@ -409,9 +409,9 @@ const DIESEL_UREA = "גולדיזל + אוריאה";
 const DEFAULT_DAY_L = "70";
 const DEFAULT_MONTH_L = "800";
 function withDefault(v, d){ return v ? v : d; }
-// «סוג הרכב» ו«שטיפומט» הם שאלות חובה בטופס גוגל (build_intake_form), ושליחה
-// בלי ערך בהן נדחית כולה בלי שגיאה גלויה. אצל הלקוח הם רשות, ולכן ריק נשלח כך:
-const DEFAULT_VTYPE = "אחר";
+// «שטיפומט» היא שאלת חובה בטופס גוגל (build_intake_form), ושליחה בלי ערך בה
+// נדחית כולה בלי שגיאה גלויה. אצל הלקוח היא רשות, ולכן ריק נשלח כ«לא».
+// «סוג הרכב» חובה גם אצל הלקוח (תמיר, 29/09), ולכן אין לו ברירת מחדל.
 const DEFAULT_SHTIFO = "לא";
 function ureaAmtsei(amtsei){
   if (amtsei.indexOf("אוריאה") !== -1) return amtsei;
@@ -420,7 +420,7 @@ function ureaAmtsei(amtsei){
 function orderedVehicles(){
   const withLimits = v => Object.assign({}, v, {
     day: withDefault(v.day, DEFAULT_DAY_L), month: withDefault(v.month, DEFAULT_MONTH_L),
-    type: withDefault(v.type, DEFAULT_VTYPE), shtifo: withDefault(v.shtifo, DEFAULT_SHTIFO)
+    shtifo: withDefault(v.shtifo, DEFAULT_SHTIFO)
   });
   return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [withLimits(v)] : [
     withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)"})),
@@ -701,7 +701,7 @@ const EXCEL_COLUMNS = [
   {key:"plate",  header:"מס׳ רכב", required:true},
   {key:"fuel",   header:"סוג דלק", list:FUEL, required:true},
   {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
-  {key:"type",   header:"סוג הרכב", list:VTYPES},
+  {key:"type",   header:"סוג הרכב", list:VTYPES, required:true},
   {key:"model",  header:"דגם רכב"},
   {key:"year",   header:"שנת יצור"},
   {key:"day",    header:"הגבלה בליטרים ליום"},
