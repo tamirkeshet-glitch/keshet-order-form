@@ -97,7 +97,9 @@ function sel(name, options, required){
   const req = required ? "required" : "";
   return `<select name="${name}" ${req}>` +
     `<option value="">בחירה</option>` +
-    options.map(o => `<option value="${o}">${o}</option>`).join("") +
+    // הערך עובר קידוד: «דלקן ב (רושם ק"מ)» מכיל גרשיים, שסגרו את מאפיין value
+    // באמצע, והערך נשלח לגוגל קטוע («דלקן ב (רושם ק»).
+    options.map(o => `<option value="${String(o).replace(/"/g, "&quot;")}">${o}</option>`).join("") +
     `</select>`;
 }
 function shtifoSel(name, allowNo){
