@@ -21,14 +21,17 @@ function colLetter(n){
   return s;
 }
 
+// מקבל גם את השמות כפי שהם מופיעים בקובץ הטוקן (client_id וכו'), כי כך הוזנו ב-Vercel
+function envOf(name){ return process.env["GOOGLE_" + name.toUpperCase()] || process.env[name]; }
+
 async function accessToken(){
   const r = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: {"Content-Type": "application/x-www-form-urlencoded"},
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      client_id: envOf("client_id"),
+      client_secret: envOf("client_secret"),
+      refresh_token: envOf("refresh_token"),
       grant_type: "refresh_token"
     })
   });
@@ -83,8 +86,8 @@ module.exports = async (req, res) => {
     // בלי פרטים ללקוח; הדף מתייחס לזה כ"אין תשובה" וממשיך לנסות
     console.error("receipt:", err.message);
     // רק האם המשתנה קיים ואורכו - לא הערך - כדי לאבחן הגדרה חסרה בלי לחשוף סוד
-    const present = ["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET","GOOGLE_REFRESH_TOKEN"]
-      .map(k => k + ":" + (process.env[k] ? process.env[k].length : 0)).join(",");
-    res.status(502).json({ok: false, error: "upstream", env: present, vercelEnv: process.env.VERCEL_ENV, stage:/^(token|sheets) \d+$/.test(err.message) ? err.message : (process.env.GOOGLE_REFRESH_TOKEN ? "other" : "no-env")});
+    const present = ["client_id","client_secret","refresh_token"]
+      .map(k => k + ":" + (envOf(k) ? envOf(k).length : 0)).join(",");
+    res.status(502).json({ok: false, error: "upstream", env: present, vercelEnv: process.env.VERCEL_ENV, stage:/^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
   }
 };
