@@ -148,8 +148,10 @@ function addVehicle(preset){
     <td>${sel("v_fuel_"+i, FUEL, true)}</td>
     <td>${sel("v_type_"+i, VTYPES, true)}</td>
     <td>${shtifoSel("v_shtifo_"+i)}</td>
-    <td><input type="text" inputmode="numeric" name="v_day_${i}"></td>
-    <td><input type="text" inputmode="numeric" name="v_month_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="v_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
+    <td><input type="text" inputmode="numeric" name="v_month_${i}" placeholder="${DEFAULT_MONTH_L}"></td>
+    <td><input type="text" inputmode="numeric" name="v_uday_${i}" placeholder="${DEFAULT_DAY_L}" disabled></td>
+    <td><input type="text" inputmode="numeric" name="v_umonth_${i}" placeholder="${DEFAULT_MONTH_L}" disabled></td>
     <td><input type="tel" name="v_phone_${i}"></td>
     <td><input type="text" name="v_driver_${i}"></td>
     <td><input type="text" name="v_model_${i}"></td>
@@ -170,7 +172,17 @@ function addVehicle(preset){
     setField("v_driver_"+i, preset.driver);
     setField("v_dept_"+i, preset.dept);
     setField("v_shtifo_"+i, preset.shtifo);
+    setField("v_uday_"+i, preset.uday);
+    setField("v_umonth_"+i, preset.umonth);
   }
+  // הגבלת האוריאה פתוחה רק כשנבחר «גולדיזל + אוריאה» - ר' orderedVehicles
+  const fuelSel = wrap.querySelector(`[name="v_fuel_${i}"]`);
+  const syncUrea = () => {
+    const on = fuelSel.value === DIESEL_UREA;
+    ["v_uday_", "v_umonth_"].forEach(n => { wrap.querySelector(`[name="${n}${i}"]`).disabled = !on; });
+  };
+  fuelSel.addEventListener("change", syncUrea);
+  syncUrea();
   $("#addVehicle").style.display = vehicleCount.n >= MAX_VEHICLES ? "none" : "inline-block";
   $("#vehicleCountNote").textContent = vehicleCount.n ? `${vehicleCount.n} רכבים בטבלה` : "";
 }
@@ -202,8 +214,8 @@ function addDriver(preset){
     <td><input type="text" name="d_name_${i}"></td>
     <td><input type="text" inputmode="numeric" name="d_id_${i}"></td>
     <td>${sel("d_fuel_"+i, FUEL_ALL, true)}</td>
-    <td><input type="text" inputmode="numeric" name="d_day_${i}"></td>
-    <td><input type="text" inputmode="numeric" name="d_month_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
+    <td><input type="text" inputmode="numeric" name="d_month_${i}" placeholder="${DEFAULT_MONTH_L}"></td>
     <td class="col-act"><button type="button" class="btn-remove" data-remove="driver" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#driversList").appendChild(wrap);
   if (preset) {
@@ -222,7 +234,8 @@ function collectVehicles(){
       amtsei: field("v_amtsei_"+i), plate: field("v_plate_"+i), phone: field("v_phone_"+i),
       fuel: field("v_fuel_"+i), type: field("v_type_"+i), day: field("v_day_"+i),
       month: field("v_month_"+i), model: field("v_model_"+i), year: field("v_year_"+i),
-      driver: field("v_driver_"+i), dept: field("v_dept_"+i), shtifo: field("v_shtifo_"+i)
+      driver: field("v_driver_"+i), dept: field("v_dept_"+i), shtifo: field("v_shtifo_"+i),
+      uday: field("v_uday_"+i), umonth: field("v_umonth_"+i)
     });
   }
   return items;
@@ -294,11 +307,11 @@ function validate(){
   if (panel==="driver") {
     if (driverCount.n===0) return need(false);
     for (let i=0;i<driverCount.n;i++){
-      if (!field("d_name_"+i) || !field("d_id_"+i) || !field("d_fuel_"+i) || !field("d_month_"+i)) return need(false);
+      if (!field("d_name_"+i) || !field("d_id_"+i) || !field("d_fuel_"+i)) return need(false);
     }
   }
   if (panel==="master") {
-    return need(val("master_qty") && val("master_fuel") && val("master_month"));
+    return need(val("master_qty") && val("master_fuel"));
   }
   if (panel==="sono") {
     return need(radio("sono_fuel"));
@@ -391,14 +404,24 @@ function addCustomerFields(form){
 // תמיר 29/09). השטיפומט נשאר רק בשורת הגולדיזל, כדי שלא יוזמן פעמיים.
 // הערך המשולב עצמו לא נשלח לגוגל, כך שאין תלות בכך שהוא קיים ברשימת הטופס.
 const DIESEL_UREA = "גולדיזל + אוריאה";
+// הגבלה שנשלחת כשהלקוח השאיר את השדה ריק, לכל אמצעי תדלוק (החלטת תמיר 29/09).
+// מוצגת כ-placeholder בשדה, כדי שהלקוח יידע מה ייכנס אם לא ימלא.
+const DEFAULT_DAY_L = "70";
+const DEFAULT_MONTH_L = "800";
+function withDefault(v, d){ return v ? v : d; }
 function ureaAmtsei(amtsei){
   if (amtsei.indexOf("אוריאה") !== -1) return amtsei;
   return amtsei.indexOf("דלקן") !== -1 ? "דלקן אוריאה" : "כרטיס אוריאה";
 }
 function orderedVehicles(){
-  return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [v] : [
-    Object.assign({}, v, {fuel: "גולדיזל (סולר)"}),
-    Object.assign({}, v, {fuel: "אוריאה", amtsei: ureaAmtsei(v.amtsei), shtifo: "לא"})
+  const withLimits = v => Object.assign({}, v, {
+    day: withDefault(v.day, DEFAULT_DAY_L), month: withDefault(v.month, DEFAULT_MONTH_L)
+  });
+  return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [withLimits(v)] : [
+    withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)"})),
+    // לאוריאה הגבלה נפרדת משלה, לא של הגולדיזל
+    withLimits(Object.assign({}, v, {fuel: "אוריאה", amtsei: ureaAmtsei(v.amtsei), shtifo: "לא",
+      day: v.uday, month: v.umonth}))
   ]);
 }
 function vehicleBatches(){
@@ -443,8 +466,8 @@ function addDriverFields(form){
     addEntry(form, ids.name, field("d_name_"+i));
     addEntry(form, ids.id, field("d_id_"+i));
     addEntry(form, ids.fuel, field("d_fuel_"+i));
-    addEntry(form, ids.day, field("d_day_"+i));
-    addEntry(form, ids.month, field("d_month_"+i));
+    addEntry(form, ids.day, withDefault(field("d_day_"+i), DEFAULT_DAY_L));
+    addEntry(form, ids.month, withDefault(field("d_month_"+i), DEFAULT_MONTH_L));
     if (ids.more) {
       const more = (i < driverCount.n-1)
         ? "כן, הזמן כרטיס נהג נוסף"
@@ -456,8 +479,8 @@ function addDriverFields(form){
 function addMasterFields(form){
   addEntry(form, E.master_qty, val("master_qty"));
   addEntry(form, E.master_fuel, val("master_fuel"));
-  addEntry(form, E.master_day, val("master_day"));
-  addEntry(form, E.master_month, val("master_month"));
+  addEntry(form, E.master_day, withDefault(val("master_day"), DEFAULT_DAY_L));
+  addEntry(form, E.master_month, withDefault(val("master_month"), DEFAULT_MONTH_L));
 }
 function addSonoFields(form){
   addEntry(form, E.sono_fuel, radio("sono_fuel"));
@@ -677,6 +700,8 @@ const EXCEL_COLUMNS = [
   {key:"type",   header:"סוג הרכב", list:VTYPES, required:true},
   {key:"day",    header:"הגבלה בליטרים ליום"},
   {key:"month",  header:"הגבלה בליטרים לחודש"},
+  {key:"uday",   header:"הגבלת אוריאה ליום"},
+  {key:"umonth", header:"הגבלת אוריאה לחודש"},
   {key:"model",  header:"דגם רכב"},
   {key:"year",   header:"שנת יצור"},
   {key:"driver", header:"שם נהג"},

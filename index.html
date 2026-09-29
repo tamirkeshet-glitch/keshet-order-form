@@ -338,6 +338,8 @@
                 <th>שטיפומט <span class="req">*</span></th>
                 <th>ליטרים ליום</th>
                 <th>ליטרים לחודש</th>
+                <th>אוריאה ליום</th>
+                <th>אוריאה לחודש</th>
                 <th>טלפון נהג</th>
                 <th>שם נהג</th>
                 <th>דגם רכב</th>
@@ -365,7 +367,7 @@
                 <th>מס׳ זהות נהג <span class="req">*</span></th>
                 <th>סוג דלק <span class="req">*</span></th>
                 <th>ליטרים ליום</th>
-                <th>ליטרים לחודש <span class="req">*</span></th>
+                <th>ליטרים לחודש</th>
                 <th class="col-act"></th>
               </tr></thead>
               <tbody id="driversList"></tbody>
@@ -385,7 +387,7 @@
                 <th>כמות כרטיסים <span class="req">*</span></th>
                 <th>סוג דלק <span class="req">*</span></th>
                 <th>ליטרים ליום</th>
-                <th>ליטרים לחודש <span class="req">*</span></th>
+                <th>ליטרים לחודש</th>
               </tr></thead>
               <tbody><tr>
                 <td><input type="number" id="master_qty" min="1"></td>
@@ -396,8 +398,8 @@
                   <option value="תוסף אוריאה">תוסף אוריאה</option>
                   <option value="ALL (כל סוגי הדלקים והתוספים)">ALL (כל סוגי הדלקים והתוספים)</option>
                 </select></td>
-                <td><input type="text" inputmode="numeric" id="master_day"></td>
-                <td><input type="text" inputmode="numeric" id="master_month"></td>
+                <td><input type="text" inputmode="numeric" id="master_day" placeholder="70"></td>
+                <td><input type="text" inputmode="numeric" id="master_month" placeholder="800"></td>
               </tr></tbody>
             </table>
           </div>
