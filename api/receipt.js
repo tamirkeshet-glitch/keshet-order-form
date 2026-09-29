@@ -22,7 +22,11 @@ function colLetter(n){
 }
 
 // מקבל גם את השמות כפי שהם מופיעים בקובץ הטוקן (client_id וכו'), כי כך הוזנו ב-Vercel
-function envOf(name){ return process.env["GOOGLE_" + name.toUpperCase()] || process.env[name]; }
+// מנקה רווחים ומירכאות שנכנסים בהעתקה מקובץ ה-JSON לממשק של Vercel
+function envOf(name){
+  const raw = process.env["GOOGLE_" + name.toUpperCase()] || process.env[name] || "";
+  return raw.trim().replace(/^["']+|["',]+$/g, "").trim();
+}
 
 async function accessToken(){
   const r = await fetch("https://oauth2.googleapis.com/token", {
