@@ -24,7 +24,10 @@ function colLetter(n){
 // מקבל גם את השמות כפי שהם מופיעים בקובץ הטוקן (client_id וכו'), כי כך הוזנו ב-Vercel
 // מנקה רווחים ומירכאות שנכנסים בהעתקה מקובץ ה-JSON לממשק של Vercel
 function envOf(name){
-  const raw = process.env["GOOGLE_" + name.toUpperCase()] || process.env[name] || "";
+  // שם המשתנה בלי תלות באותיות גדולות/קטנות ועם או בלי GOOGLE_ (הוזנו בכמה צורות ב-Vercel)
+  const want = name.toLowerCase();
+  const key = Object.keys(process.env).find(k => k.toLowerCase().replace(/^google_/, "") === want);
+  const raw = (key && process.env[key]) || "";
   return raw.trim().replace(/^["']+|["',]+$/g, "").trim();
 }
 
