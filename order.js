@@ -192,20 +192,15 @@ function addShtifoVehicle(preset){
 function addDriver(preset){
   if (driverCount.n >= 2) return;
   const i = driverCount.n++;
-  const wrap = document.createElement("div");
-  wrap.className = "card-block";
+  const wrap = document.createElement("tr");
   wrap.innerHTML = `
-    <div class="card-head">
-      <h3>כרטיס נהג ${i+1}</h3>
-      <button type="button" class="btn-remove" data-remove="driver" data-i="${i}">הסר</button>
-    </div>
-    <div class="grid">
-      <div>${label("שם הנהג", true)}<input type="text" name="d_name_${i}"></div>
-      <div>${label("מס׳ זהות נהג", true)}<input type="text" name="d_id_${i}"></div>
-      <div class="span-2">${label("סוג דלק", true)}${sel("d_fuel_"+i, FUEL_ALL, true)}</div>
-      <div>${label("הגבלת צריכה יומית בליטרים")}<input type="text" name="d_day_${i}"></div>
-      <div>${label("הגבלת צריכה חודשית בליטרים", true)}<input type="text" name="d_month_${i}"></div>
-    </div>`;
+    <td class="col-num">${i+1}</td>
+    <td><input type="text" name="d_name_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_id_${i}"></td>
+    <td>${sel("d_fuel_"+i, FUEL_ALL, true)}</td>
+    <td><input type="text" inputmode="numeric" name="d_day_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_month_${i}"></td>
+    <td class="col-act"><button type="button" class="btn-remove" data-remove="driver" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#driversList").appendChild(wrap);
   if (preset) {
     setField("d_name_"+i, preset.name);
@@ -830,6 +825,17 @@ $("#nextBtn").addEventListener("click", () => {
   if (currentPanel()==="summary") buildSummary();
   renderSteps();
 });
+// סכום לכל ערך נקוב וסה"כ, כדי שהלקוח יראה מיד על כמה כסף ההזמנה
+function updateSonoTotals(){
+  let total = 0;
+  document.querySelectorAll("[data-denom]").forEach(el => {
+    const line = (Number(el.value) || 0) * Number(el.dataset.denom);
+    total += line;
+    document.querySelector(`[data-line="${el.dataset.denom}"]`).textContent = line ? line.toLocaleString("he-IL") + " ₪" : "";
+  });
+  $("#sonoTotal").textContent = total.toLocaleString("he-IL") + " ₪";
+}
+document.querySelectorAll("[data-denom]").forEach(el => el.addEventListener("input", updateSonoTotals));
 // ---- טיוטה ----
 // נשמרת בדפדפן של הלקוח בלבד (localStorage), כדי שרענון או סגירה בטעות
 // לא ימחקו הזמנה ארוכה. נמחקת ברגע השליחה. הגישה עטופה ב-try כי בגלישה
@@ -870,6 +876,7 @@ function restoreDraft(d){
   if (wants("vehicle") && vehicleCount.n === 0) addVehicle();
   if (wants("driver") && driverCount.n === 0) addDriver();
   if (wants("shtifo") && shtifoCount.n === 0) addShtifoVehicle();
+  updateSonoTotals();
   rebuildPath();
   step = Math.min(d.step || 0, path.length - 1);
   renderSteps();
