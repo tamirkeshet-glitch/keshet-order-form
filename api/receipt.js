@@ -11,8 +11,11 @@
 
 const SHEET_ID = process.env.INTAKE_SHEET_ID || "1chWfLWGSo-2Xx2m6bUGUyy5mU8maYGafS2Bm_iRL-Pc";
 const SHEET_NAME = process.env.INTAKE_SHEET_NAME || "תגובות לטופס 1";
-// מיקומי עמודות זהים ל-COL ב-intake_processing_automation.gs
-const COL = { TIMESTAMP: 1, CUSTOMER_ID: 3, CUSTOMER_EMAIL: 6, CATEGORY: 8, STATUS: 159 };
+// מיקומי עמודות זהים ל-COL ב-intake_processing_automation.gs. עמודת הסטטוס
+// נמצאת לפי כותרת (כמו techCols_ שם): הייתה קבועה ב-159, אבל שאלות שנוספו
+// לטופס נכנסו לשם, והסטטוס נקרא מתוך תשובת הלקוח (29/09/2026).
+const COL = { TIMESTAMP: 1, CUSTOMER_ID: 3, CUSTOMER_EMAIL: 6, CATEGORY: 8 };
+const STATUS_HEADER = "סטטוס עיבוד (טכני - אין לערוך)";
 const TAIL_ROWS = 200;
 
 function colLetter(n){
@@ -64,10 +67,14 @@ module.exports = async (req, res) => {
     const colA = await sheetGet(token, `/values/${encodeURIComponent(`'${SHEET_NAME}'!A:A`)}?majorDimension=COLUMNS`);
     const lastRow = ((colA.values || [[]])[0] || []).length;
     if (lastRow < 2) { res.json({ok: true, rows: []}); return; }
+    const hdr = await sheetGet(token, `/values/${encodeURIComponent(`'${SHEET_NAME}'!1:1`)}`);
+    const statusIdx = ((hdr.values || [[]])[0] || []).map(h => String(h).trim()).indexOf(STATUS_HEADER);
+    if (statusIdx === -1) throw new Error("sheets 0");
+    const statusCol = statusIdx + 1;
     const first = Math.max(2, lastRow - TAIL_ROWS + 1);
     const ranges = [
       `'${SHEET_NAME}'!A${first}:${colLetter(COL.CATEGORY)}${lastRow}`,
-      `'${SHEET_NAME}'!${colLetter(COL.STATUS)}${first}:${colLetter(COL.STATUS)}${lastRow}`
+      `'${SHEET_NAME}'!${colLetter(statusCol)}${first}:${colLetter(statusCol)}${lastRow}`
     ].map(r => "ranges=" + encodeURIComponent(r)).join("&");
     // תאריך כמספר סידורי (ימים מ-30/12/1899, לפי אזור הזמן של הגיליון) - משמש רק לסדר ולחלון של יממה
     const data = await sheetGet(token,
