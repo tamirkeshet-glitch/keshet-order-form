@@ -13,6 +13,10 @@ const GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em
 // לגיליון ועובדו.
 // הפונקציה ב-api/receipt.js (Vercel). ריק = בלי בדיקת קבלה (הודעת הצלחה כמו קודם).
 const STATUS_URL = "/api/receipt";
+// מרווח בין שליחות רצופות לגוגל. ב-1.2 שניות אחת מ-6 שליחות אבדה בבדיקה
+// של 29/09 (לא הגיעה לגיליון). 3 שניות מקטינות את הסיכוי, ובדיקת הקבלה
+// ו"שליחה חוזרת" עדיין מכסות את מה שבכל זאת אובד.
+const SUBMIT_GAP_MS = 3000;
 const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
@@ -192,20 +196,15 @@ function addShtifoVehicle(preset){
 function addDriver(preset){
   if (driverCount.n >= 2) return;
   const i = driverCount.n++;
-  const wrap = document.createElement("div");
-  wrap.className = "card-block";
+  const wrap = document.createElement("tr");
   wrap.innerHTML = `
-    <div class="card-head">
-      <h3>כרטיס נהג ${i+1}</h3>
-      <button type="button" class="btn-remove" data-remove="driver" data-i="${i}">הסר</button>
-    </div>
-    <div class="grid">
-      <div>${label("שם הנהג", true)}<input type="text" name="d_name_${i}"></div>
-      <div>${label("מס׳ זהות נהג", true)}<input type="text" name="d_id_${i}"></div>
-      <div class="span-2">${label("סוג דלק", true)}${sel("d_fuel_"+i, FUEL_ALL, true)}</div>
-      <div>${label("הגבלת צריכה יומית בליטרים")}<input type="text" name="d_day_${i}"></div>
-      <div>${label("הגבלת צריכה חודשית בליטרים", true)}<input type="text" name="d_month_${i}"></div>
-    </div>`;
+    <td class="col-num">${i+1}</td>
+    <td><input type="text" name="d_name_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_id_${i}"></td>
+    <td>${sel("d_fuel_"+i, FUEL_ALL, true)}</td>
+    <td><input type="text" inputmode="numeric" name="d_day_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_month_${i}"></td>
+    <td class="col-act"><button type="button" class="btn-remove" data-remove="driver" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#driversList").appendChild(wrap);
   if (preset) {
     setField("d_name_"+i, preset.name);
@@ -551,7 +550,7 @@ function submitToGoogle(){
       submitJob(jobs[i], sendCounter++);
       i += 1;
       if (i < jobs.length) {
-        setTimeout(sendNext, 1200);
+        setTimeout(sendNext, SUBMIT_GAP_MS);
       } else {
         setTimeout(() => { showSuccess(jobs.length); trackReceipt(jobs, before); }, 900);
       }
@@ -636,7 +635,7 @@ function showResend(missing, before){
     (function next(){
       submitJob(missing[i], sendCounter++);
       i += 1;
-      if (i < missing.length) setTimeout(next, 1200);
+      if (i < missing.length) setTimeout(next, SUBMIT_GAP_MS);
       else setTimeout(() => trackReceipt(missing, before), 900);
     })();
   });
@@ -830,6 +829,17 @@ $("#nextBtn").addEventListener("click", () => {
   if (currentPanel()==="summary") buildSummary();
   renderSteps();
 });
+// סכום לכל ערך נקוב וסה"כ, כדי שהלקוח יראה מיד על כמה כסף ההזמנה
+function updateSonoTotals(){
+  let total = 0;
+  document.querySelectorAll("[data-denom]").forEach(el => {
+    const line = (Number(el.value) || 0) * Number(el.dataset.denom);
+    total += line;
+    document.querySelector(`[data-line="${el.dataset.denom}"]`).textContent = line ? line.toLocaleString("he-IL") + " ₪" : "";
+  });
+  $("#sonoTotal").textContent = total.toLocaleString("he-IL") + " ₪";
+}
+document.querySelectorAll("[data-denom]").forEach(el => el.addEventListener("input", updateSonoTotals));
 // ---- טיוטה ----
 // נשמרת בדפדפן של הלקוח בלבד (localStorage), כדי שרענון או סגירה בטעות
 // לא ימחקו הזמנה ארוכה. נמחקת ברגע השליחה. הגישה עטופה ב-try כי בגלישה
@@ -870,6 +880,7 @@ function restoreDraft(d){
   if (wants("vehicle") && vehicleCount.n === 0) addVehicle();
   if (wants("driver") && driverCount.n === 0) addDriver();
   if (wants("shtifo") && shtifoCount.n === 0) addShtifoVehicle();
+  updateSonoTotals();
   rebuildPath();
   step = Math.min(d.step || 0, path.length - 1);
   renderSteps();
