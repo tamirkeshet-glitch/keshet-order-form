@@ -82,6 +82,6 @@ module.exports = async (req, res) => {
   } catch (err) {
     // בלי פרטים ללקוח; הדף מתייחס לזה כ"אין תשובה" וממשיך לנסות
     console.error("receipt:", err.message);
-    res.status(502).json({ok: false, error: "upstream"});
+    res.status(502).json({ok: false, error: "upstream", stage: /^(token|sheets) d+$/.test(err.message) ? err.message : (process.env.GOOGLE_REFRESH_TOKEN ? "other" : "no-env")});
   }
 };
