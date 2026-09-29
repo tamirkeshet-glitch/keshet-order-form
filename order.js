@@ -179,7 +179,13 @@ function addVehicle(preset){
   const fuelSel = wrap.querySelector(`[name="v_fuel_${i}"]`);
   const syncUrea = () => {
     const on = fuelSel.value === DIESEL_UREA;
-    ["v_uday_", "v_umonth_"].forEach(n => { wrap.querySelector(`[name="${n}${i}"]`).disabled = !on; });
+    // disabled לבד השאיר את השדות גלויים (עם placeholder) בכל שורה, גם בבנזין.
+    // urea-off מסתיר את התוכן בטבלה ואת כל השורה בכרטיס של הטלפון.
+    ["v_uday_", "v_umonth_"].forEach(n => {
+      const el = wrap.querySelector(`[name="${n}${i}"]`);
+      el.disabled = !on;
+      el.closest("td").classList.toggle("urea-off", !on);
+    });
   };
   fuelSel.addEventListener("change", syncUrea);
   syncUrea();
@@ -749,8 +755,15 @@ function loadXlsx(){
   }
   return xlsxLoading;
 }
-function findSheetRows(XLSX, wb){
-  const names = wb.SheetNames.includes("הזמנה") ? ["הזמנה", ...wb.SheetNames] : wb.SheetNames;
+// רכבי שטיפומט: תבנית נפרדת (order-template-shtifomat.xlsx, scripts/make_shtifomat_template.py)
+const SHTIFO_EXCEL_COLUMNS = [
+  {key:"plate", header:"מס׳ רכב", required:true},
+  {key:"type",  header:"סוג הרכב", list:SHTIFO_VTYPES, required:true},
+  {key:"qty",   header:"כמות שטיפות בחודש", list:["1","2","3","4","5"], required:true}
+];
+function findSheetRows(XLSX, wb, preferredSheet){
+  const pref = preferredSheet || "הזמנה";
+  const names = wb.SheetNames.includes(pref) ? [pref, ...wb.SheetNames] : wb.SheetNames;
   const plateHeader = norm("מס׳ רכב");
   for (const name of names) {
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:false, defval:""});
@@ -759,10 +772,12 @@ function findSheetRows(XLSX, wb){
   }
   return null;
 }
-function parseOrderRows(found){
+function parseOrderRows(found, columns, max){
+  columns = columns || EXCEL_COLUMNS;
+  max = max || MAX_VEHICLES;
   const colIndex = {};
   const missing = [];
-  EXCEL_COLUMNS.forEach(c => {
+  columns.forEach(c => {
     const idx = found.header.findIndex(h => norm(h) === norm(c.header));
     if (idx >= 0) colIndex[c.key] = idx;
     else if (c.required) missing.push(c.header);
@@ -775,13 +790,13 @@ function parseOrderRows(found){
   found.data.forEach((row, r) => {
     const rowNo = found.firstRow + r;
     const raw = {};
-    EXCEL_COLUMNS.forEach(c => {
+    columns.forEach(c => {
       raw[c.key] = colIndex[c.key] === undefined ? "" : String(row[colIndex[c.key]] ?? "").trim();
     });
     if (!Object.values(raw).some(Boolean)) return;
     const item = {};
     const rowErr = [];
-    EXCEL_COLUMNS.forEach(c => {
+    columns.forEach(c => {
       let v = raw[c.key];
       if (c.key === "shtifo" && !v) v = "לא";
       if (!v) {
@@ -800,8 +815,8 @@ function parseOrderRows(found){
     else items.push(item);
   });
   if (!items.length && !errors.length) errors.push("לא נמצאו רכבים בקובץ.");
-  if (items.length > MAX_VEHICLES) {
-    errors.push(`הקובץ מכיל ${items.length} רכבים. המקסימום בהזמנה אחת הוא ${MAX_VEHICLES}.`);
+  if (items.length > max) {
+    errors.push(`הקובץ מכיל ${items.length} רכבים. המקסימום בהזמנה אחת הוא ${max}.`);
   }
   const seen = new Set();
   items.forEach(it => {
@@ -811,38 +826,54 @@ function parseOrderRows(found){
   });
   return {errors, items};
 }
-function showImportResult(ok, html){
-  const box = $("#excelResult");
+function showImportResult(ok, html, boxSel){
+  const box = $(boxSel || "#excelResult");
   box.className = "import-result " + (ok ? "ok" : "bad");
   box.innerHTML = html;
   box.style.display = "block";
 }
-async function importExcel(file){
+// קורא קובץ ומחזיר פריטים תקינים, או null אחרי שהשגיאה כבר הוצגה בתיבה
+async function readExcelItems(file, columns, max, sheet, boxSel){
   let XLSX;
   try { XLSX = await loadXlsx(); }
   catch (e) {
-    showImportResult(false, "לא ניתן לטעון את רכיב קריאת האקסל. בדקו את החיבור לאינטרנט ונסו שוב.");
-    return;
+    showImportResult(false, "לא ניתן לטעון את רכיב קריאת האקסל. בדקו את החיבור לאינטרנט ונסו שוב.", boxSel);
+    return null;
   }
   let found;
   try {
     const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
-    found = findSheetRows(XLSX, wb);
+    found = findSheetRows(XLSX, wb, sheet);
   } catch (e) {
-    showImportResult(false, "לא ניתן לקרוא את הקובץ. יש להעלות קובץ אקסל (xlsx) לפי התבנית.");
-    return;
+    showImportResult(false, "לא ניתן לקרוא את הקובץ. יש להעלות קובץ אקסל (xlsx) לפי התבנית.", boxSel);
+    return null;
   }
   if (!found) {
-    showImportResult(false, "לא נמצאה שורת כותרות בקובץ. יש להשתמש בתבנית שבקישור.");
-    return;
+    showImportResult(false, "לא נמצאה שורת כותרות בקובץ. יש להשתמש בתבנית שבקישור.", boxSel);
+    return null;
   }
-  const {errors, items} = parseOrderRows(found);
+  const {errors, items} = parseOrderRows(found, columns, max);
   if (errors.length) {
     const shown = errors.slice(0, 15).map(e => `<li>${esc(e)}</li>`).join("");
     const more = errors.length > 15 ? `<li>ועוד ${errors.length - 15} שגיאות...</li>` : "";
-    showImportResult(false, `<b>הקובץ לא נקלט. יש לתקן ולהעלות שוב:</b><ul>${shown}${more}</ul>`);
-    return;
+    showImportResult(false, `<b>הקובץ לא נקלט. יש לתקן ולהעלות שוב:</b><ul>${shown}${more}</ul>`, boxSel);
+    return null;
   }
+  return items;
+}
+async function importShtifoExcel(file){
+  const items = await readExcelItems(file, SHTIFO_EXCEL_COLUMNS, MAX_SHTIFO, "שטיפומט", "#shtifoExcelResult");
+  if (!items) return;
+  // קובץ מחליף את הרכבים שכבר הוזנו, כמו בהעלאת הרכבים
+  $("#shtifoList").innerHTML = "";
+  shtifoCount.n = 0;
+  items.forEach(it => addShtifoVehicle(it));
+  saveDraft();
+  showImportResult(true, `<b>נקלטו ${items.length} רכבים מהקובץ.</b> כולם ייכנסו לטופס שטיפומט אחד. אפשר לבדוק ולתקן אותם למטה לפני ההמשך.`, "#shtifoExcelResult");
+}
+async function importExcel(file){
+  const items = await readExcelItems(file, EXCEL_COLUMNS, MAX_VEHICLES, "הזמנה", "#excelResult");
+  if (!items) return;
   // קובץ מחליף את הרכבים שכבר הוזנו, כדי שהעלאה חוזרת של קובץ מתוקן לא תכפיל רכבים
   $("#vehiclesList").innerHTML = "";
   vehicleCount.n = 0;
@@ -858,6 +889,11 @@ $("#excelFile").addEventListener("change", (ev) => {
   const file = ev.target.files && ev.target.files[0];
   ev.target.value = "";
   if (file) importExcel(file);
+});
+$("#shtifoExcelFile").addEventListener("change", (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (file) importShtifoExcel(file);
 });
 document.querySelectorAll('input[name="order_type"]').forEach(el => {
   el.addEventListener("change", () => {
