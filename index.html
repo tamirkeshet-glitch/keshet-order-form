@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <title>טופס הזמנת אמצעי תדלוק - קשת יזמות עסקית / סונול</title>
   <style>
     :root {
@@ -37,6 +40,8 @@
       height: 36px; padding: 0 12px; border-radius: 6px;
       display: flex; align-items: center; font-weight: 800; letter-spacing: .4px;
     }
+    .brand-logo { height: 80px; width: auto; display: block; }
+    @media (max-width: 640px) { .brand-logo { height: 60px; } }
     .logo-sonol { background: var(--primary); color: #fff; font-size: 1.05rem; }
     .logo-keshet { background: var(--ink); color: #fff; font-size: .85rem; }
     .form-card {
@@ -118,6 +123,10 @@
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
     .vtable { border-collapse: collapse; width: 100%; min-width: 1180px; font-size: .88rem; }
     .vtable-narrow { min-width: 520px; }
+    .vtable-mid { min-width: 720px; }
+    .sono-table td:first-child { font-weight: 700; white-space: nowrap; }
+    .sono-table .sono-line, .sono-table tfoot td { white-space: nowrap; }
+    .sono-table tfoot td { font-weight: 700; background: #eef1f5; padding: 8px 6px; }
     .vtable th {
       background: #eef1f5; font-weight: 700; font-size: .8rem; padding: 8px 6px;
       text-align: right; white-space: nowrap; position: sticky; top: 0;
@@ -188,10 +197,8 @@
 <body>
   <div class="wrap">
     <div class="brand">
-      <div class="brand-mark">
-        <div class="logo-sonol">SONOL</div>
-        <div class="logo-keshet">קשת יזמות עסקית</div>
-      </div>
+      <img class="brand-logo" src="assets/keshet-logo.png" alt="קשת יזמות עסקית" width="75" height="80">
+      <div class="logo-sonol">SONOL</div>
     </div>
 
     <div class="form-card" id="app">
@@ -306,36 +313,49 @@
 
         <section class="panel" data-panel="driver">
           <h2 class="section-title">כרטיס נהג</h2>
-          <div id="driversList"></div>
-          <button type="button" class="btn btn-add" id="addDriver">+ הוסף כרטיס נהג</button>
+          <div class="table-wrap">
+            <table class="vtable vtable-mid">
+              <thead><tr>
+                <th class="col-num">#</th>
+                <th>שם הנהג <span class="req">*</span></th>
+                <th>מס׳ זהות נהג <span class="req">*</span></th>
+                <th>סוג דלק <span class="req">*</span></th>
+                <th>ליטרים ליום</th>
+                <th>ליטרים לחודש <span class="req">*</span></th>
+                <th class="col-act"></th>
+              </tr></thead>
+              <tbody id="driversList"></tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <button type="button" class="btn btn-add" id="addDriver">+ הוסף שורה</button>
+          </div>
           <p class="muted" style="margin-top:8px">עד 2 כרטיסי נהג.</p>
         </section>
 
         <section class="panel" data-panel="master">
           <h2 class="section-title">כרטיס מאסטר</h2>
-          <div class="grid">
-            <div>
-              <label>כמות כרטיסים <span class="req">*</span></label>
-              <input type="number" id="master_qty" min="1">
-            </div>
-            <div>
-              <label>סוג דלק <span class="req">*</span></label>
-              <select id="master_fuel">
-                <option value="">בחירה</option>
-                <option value="גולדיזל">גולדיזל</option>
-                <option value="גולד95">גולד95</option>
-                <option value="תוסף אוריאה">תוסף אוריאה</option>
-                <option value="ALL (כל סוגי הדלקים והתוספים)">ALL (כל סוגי הדלקים והתוספים)</option>
-              </select>
-            </div>
-            <div>
-              <label>הגבלה בליטרים ליום</label>
-              <input type="text" id="master_day">
-            </div>
-            <div>
-              <label>הגבלה בליטרים לחודש <span class="req">*</span></label>
-              <input type="text" id="master_month">
-            </div>
+          <div class="table-wrap">
+            <table class="vtable vtable-mid">
+              <thead><tr>
+                <th>כמות כרטיסים <span class="req">*</span></th>
+                <th>סוג דלק <span class="req">*</span></th>
+                <th>ליטרים ליום</th>
+                <th>ליטרים לחודש <span class="req">*</span></th>
+              </tr></thead>
+              <tbody><tr>
+                <td><input type="number" id="master_qty" min="1"></td>
+                <td><select id="master_fuel">
+                  <option value="">בחירה</option>
+                  <option value="גולדיזל">גולדיזל</option>
+                  <option value="גולד95">גולד95</option>
+                  <option value="תוסף אוריאה">תוסף אוריאה</option>
+                  <option value="ALL (כל סוגי הדלקים והתוספים)">ALL (כל סוגי הדלקים והתוספים)</option>
+                </select></td>
+                <td><input type="text" inputmode="numeric" id="master_day"></td>
+                <td><input type="text" inputmode="numeric" id="master_month"></td>
+              </tr></tbody>
+            </table>
           </div>
         </section>
 
@@ -369,13 +389,19 @@
               <label class="choice"><input type="radio" name="sono_fuel" value="סולר"> סולר</label>
             </div>
           </div>
-          <div class="grid">
-            <div><label>כמות בערך 100 ₪</label><input type="number" id="sono_100" min="0"></div>
-            <div><label>כמות בערך 150 ₪</label><input type="number" id="sono_150" min="0"></div>
-            <div><label>כמות בערך 200 ₪</label><input type="number" id="sono_200" min="0"></div>
-            <div><label>כמות בערך 250 ₪</label><input type="number" id="sono_250" min="0"></div>
-            <div><label>כמות בערך 500 ₪</label><input type="number" id="sono_500" min="0"></div>
-            <div><label>כמות בערך 1000 ₪</label><input type="number" id="sono_1000" min="0"></div>
+          <div class="table-wrap">
+            <table class="vtable vtable-narrow sono-table">
+              <thead><tr><th>ערך נקוב</th><th>כמות כרטיסים</th><th>סה״כ</th></tr></thead>
+              <tbody>
+                <tr><td>100 ₪</td><td><input type="number" id="sono_100" min="0" data-denom="100"></td><td class="sono-line" data-line="100"></td></tr>
+                <tr><td>150 ₪</td><td><input type="number" id="sono_150" min="0" data-denom="150"></td><td class="sono-line" data-line="150"></td></tr>
+                <tr><td>200 ₪</td><td><input type="number" id="sono_200" min="0" data-denom="200"></td><td class="sono-line" data-line="200"></td></tr>
+                <tr><td>250 ₪</td><td><input type="number" id="sono_250" min="0" data-denom="250"></td><td class="sono-line" data-line="250"></td></tr>
+                <tr><td>500 ₪</td><td><input type="number" id="sono_500" min="0" data-denom="500"></td><td class="sono-line" data-line="500"></td></tr>
+                <tr><td>1,000 ₪</td><td><input type="number" id="sono_1000" min="0" data-denom="1000"></td><td class="sono-line" data-line="1000"></td></tr>
+              </tbody>
+              <tfoot><tr><td colspan="2">סה״כ הזמנה</td><td id="sonoTotal">0 ₪</td></tr></tfoot>
+            </table>
           </div>
         </section>
 
@@ -392,7 +418,7 @@
       </div>
 
       <div class="success" id="successMessage">
-        <h2>ההזמנה נשלחה בהצלחה!</h2>
+        <h2>הטפסים בתהליך שליחה - יש לעקוב אחר אישור השליחה</h2>
         <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם.</p>
         <p id="successDocs"></p>
         <div class="receipt" id="receipt">
