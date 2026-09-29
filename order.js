@@ -335,7 +335,7 @@ function buildSummary(){
   const list = jobs.map((j, k) => `<li><b>טופס ${k+1}:</b> ${jobSummaryLabel(j)}</li>`).join("");
   let vehicles = "";
   if (wants("vehicle") && vehicleCount.n) {
-    const rows = collectVehicles().map((v, k) =>
+    const rows = orderedVehicles().map((v, k) =>
       `<tr><td>${k+1}</td><td>${esc(v.amtsei)}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td>` +
       `<td>${esc(v.type)}</td><td>${esc(v.shtifo)}</td><td>${esc(v.month)}</td></tr>`).join("");
     vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>אמצעי</th><th>מס׳ רכב</th>` +
@@ -386,9 +386,24 @@ function addCustomerFields(form){
 }
 // פיצול: קבוצה לכל סוג אמצעי תדלוק (לפי סדר הופעה), וכל קבוצה בנתחים של עד 10.
 // ה-PDF וחבילת ה-WeSign נבנים לכל שורת תשובה, ולכן כל נתח = טופס נפרד לחתימה.
+// «גולדיזל + אוריאה» הוא שני אמצעי תדלוק נפרדים, ולכן לפני השליחה הרכב מתפצל
+// לשתי שורות: גולדיזל באמצעי שנבחר, ואוריאה באמצעי האוריאה המקביל (החלטת
+// תמיר 29/09). השטיפומט נשאר רק בשורת הגולדיזל, כדי שלא יוזמן פעמיים.
+// הערך המשולב עצמו לא נשלח לגוגל, כך שאין תלות בכך שהוא קיים ברשימת הטופס.
+const DIESEL_UREA = "גולדיזל + אוריאה";
+function ureaAmtsei(amtsei){
+  if (amtsei.indexOf("אוריאה") !== -1) return amtsei;
+  return amtsei.indexOf("דלקן") !== -1 ? "דלקן אוריאה" : "כרטיס אוריאה";
+}
+function orderedVehicles(){
+  return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [v] : [
+    Object.assign({}, v, {fuel: "גולדיזל (סולר)"}),
+    Object.assign({}, v, {fuel: "אוריאה", amtsei: ureaAmtsei(v.amtsei), shtifo: "לא"})
+  ]);
+}
 function vehicleBatches(){
   const groups = new Map();
-  collectVehicles().forEach(v => {
+  orderedVehicles().forEach(v => {
     if (!groups.has(v.amtsei)) groups.set(v.amtsei, []);
     groups.get(v.amtsei).push(v);
   });
