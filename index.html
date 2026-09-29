@@ -114,6 +114,16 @@
     .error { color: var(--primary); font-size: .85rem; margin-top: 6px; display: none; }
     .gate { margin-bottom: 16px; }
     .muted { color: var(--muted); font-size: .9rem; }
+    .excel-box {
+      border: 1px dashed #ccd3db; border-radius: 10px; padding: 14px; margin-bottom: 16px; background: #fff;
+    }
+    .excel-box p { margin: 6px 0 10px; line-height: 1.6; }
+    .excel-box a { color: var(--primary); font-weight: 700; }
+    .excel-upload { display: inline-block; margin: 0; }
+    .import-result { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: .9rem; line-height: 1.6; }
+    .import-result.ok { background: #edf7ee; color: var(--ok); }
+    .import-result.bad { background: #fff5f5; color: var(--primary-dark); }
+    .import-result ul { margin: 6px 20px 0 0; }
     .summary { background: #f7f8fa; border-radius: 10px; padding: 14px 16px; line-height: 1.7; }
     .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 640px) { .pick-grid { grid-template-columns: 1fr; } }
@@ -191,7 +201,7 @@
             <label class="pick">
               <input type="checkbox" name="order_type" value="vehicle">
               <strong>דלקן / כרטיס רכב</strong>
-              <span>עד 10 רכבים, סוג דלק, הגבלות ושטיפומט</span>
+              <span>הזנה ידנית או העלאת קובץ אקסל · סוג דלק, הגבלות ושטיפומט</span>
             </label>
             <label class="pick">
               <input type="checkbox" name="order_type" value="driver">
@@ -218,9 +228,17 @@
 
         <section class="panel" data-panel="vehicle">
           <h2 class="section-title">דלקן / כרטיס רכב</h2>
+          <div class="excel-box">
+            <strong>הרבה רכבים? אפשר להעלות קובץ אקסל במקום להקליד</strong>
+            <p class="muted">1. מורידים את <a href="order-template.xlsx" download>תבנית ההזמנה (Excel)</a> &nbsp;2. ממלאים שורה לכל רכב &nbsp;3. מעלים את הקובץ כאן. הרכבים ייכנסו לטופס, ואפשר לתקן אותם לפני השליחה.</p>
+            <label class="btn btn-add excel-upload">העלאת קובץ אקסל
+              <input type="file" id="excelFile" accept=".xlsx,.xls" hidden>
+            </label>
+            <div class="import-result" id="excelResult"></div>
+          </div>
           <div id="vehiclesList"></div>
           <button type="button" class="btn btn-add" id="addVehicle">+ הוסף רכב / דלקן</button>
-          <p class="muted" style="margin-top:8px">עד 10 רכבים.</p>
+          <p class="muted" style="margin-top:8px">עד 10 רכבים בטופס. בהזמנה גדולה יותר, או עם כמה סוגי אמצעי תדלוק, ההזמנה תפוצל אוטומטית לכמה טפסים, וכל אחד יישלח לחתימה בנפרד.</p>
         </section>
 
         <section class="panel" data-panel="driver">
@@ -304,8 +322,6 @@
     </div>
   </div>
 
-  <form id="gform" action="https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse" method="POST" target="hidden_iframe" style="display:none"></form>
-  <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
 
 <script src="order.js"></script>
 <!-- deploy-2026-09-23-combined-fuel -->

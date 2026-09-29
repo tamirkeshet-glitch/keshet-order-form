@@ -8,6 +8,7 @@ const PANEL_LABELS = {
   shtifo: "שטיפומט",
   summary: "שליחה"
 };
+const GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse";
 const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
@@ -66,6 +67,10 @@ let submitted = false;
 const vehicleCount = { n: 0 };
 const driverCount = { n: 0 };
 const shtifoCount = { n: 0 };
+// טופס גוגל מחזיק 10 סלוטי רכב (עמודים 5..14). מעבר לזה ההזמנה מתפצלת
+// לכמה שליחות, כל אחת עד 10 רכבים ורק מסוג אמצעי תדלוק אחד.
+const FORM_VEHICLE_SLOTS = 10;
+const MAX_VEHICLES = 200;
 function $(sel){ return document.querySelector(sel); }
 function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 function radio(name){
@@ -112,7 +117,7 @@ function setField(name, value){
   if (el && value !== undefined && value !== null) el.value = value;
 }
 function addVehicle(preset){
-  if (vehicleCount.n >= 10) return;
+  if (vehicleCount.n >= MAX_VEHICLES) return;
   const i = vehicleCount.n++;
   const wrap = document.createElement("div");
   wrap.className = "card-block";
@@ -151,7 +156,7 @@ function addVehicle(preset){
     setField("v_dept_"+i, preset.dept);
     setField("v_shtifo_"+i, preset.shtifo);
   }
-  $("#addVehicle").style.display = vehicleCount.n >= 10 ? "none" : "inline-block";
+  $("#addVehicle").style.display = vehicleCount.n >= MAX_VEHICLES ? "none" : "inline-block";
 }
 function label(t, req){ return `<label>${t}${req?' <span class="req">*</span>':''}</label>`; }
 function addShtifoVehicle(preset){
@@ -239,7 +244,7 @@ function removeItem(kind, index){
     $("#vehiclesList").innerHTML = "";
     vehicleCount.n = 0;
     keep.forEach(item => addVehicle(item));
-    $("#addVehicle").style.display = vehicleCount.n >= 10 ? "none" : "inline-block";
+    $("#addVehicle").style.display = vehicleCount.n >= MAX_VEHICLES ? "none" : "inline-block";
   } else if (kind === "shtifo") {
     const keep = collectShtifo().filter((_, i) => i !== index);
     $("#shtifoList").innerHTML = "";
@@ -307,18 +312,28 @@ function categoryValue(type){
   const first = PRODUCT_PANELS.find(t => wants(t));
   return first ? CATEGORY_MAP[first] : "";
 }
+function esc(t){
+  return String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 function buildSummary(){
   const lines = [
-    `<b>${val("company")}</b> · ${val("hp")}`,
-    val("address"),
-    `${val("phone")} · ${val("email")}`,
-    `מורשה חתימה: ${val("sig1_name")}`,
+    `<b>${esc(val("company"))}</b> · ${esc(val("hp"))}`,
+    esc(val("address")),
+    `${esc(val("phone"))} · ${esc(val("email"))}`,
+    `מורשה חתימה: ${esc(val("sig1_name"))}`,
     `דלקן/רכב: ${wants("vehicle") ? vehicleCount.n+" פריטים" : "לא"}`,
     `כרטיס נהג: ${wants("driver") ? driverCount.n+" כרטיסים" : "לא"}`,
     `מאסטר: ${wants("master") ? val("master_qty")+" כרטיסים" : "לא"}`,
     `סונוקאש: ${wants("sono") ? (radio("sono_fuel") || "כן") : "לא"}`,
     `שטיפומט: ${wants("shtifo") ? shtifoCount.n+" רכבים" : "לא"}`
   ];
+  if (wants("vehicle")) {
+    const batches = vehicleBatches();
+    if (batches.length > 1) {
+      lines.push("", `<b>הזמנת הרכבים תישלח כ-${batches.length} טפסים נפרדים, כל אחד לחתימה בנפרד:</b>`);
+      batches.forEach((b, k) => lines.push(`טופס ${k+1}: ${esc(b[0].amtsei)} · ${b.length} רכבים`));
+    }
+  }
   $("#summary").innerHTML = lines.join("<br>");
 }
 function addHidden(form, name, value){
@@ -332,14 +347,14 @@ function addHidden(form, name, value){
 function addEntry(form, entry, value){
   addHidden(form, "entry." + entry, value);
 }
-function pageHistoryValue(type){
+function pageHistoryValue(type, vehiclesInJob){
   const pages = [0, 1];
   const includeVehicle = type ? type === "vehicle" : wants("vehicle");
   const includeDriver = type ? type === "driver" : wants("driver");
   const includeMaster = type ? type === "master" : wants("master");
   const includeSono = type ? type === "sono" : wants("sono");
   if (includeVehicle) {
-    for (let i = 0; i < vehicleCount.n; i++) pages.push(5 + i);
+    for (let i = 0; i < vehiclesInJob; i++) pages.push(5 + i);
   }
   if (includeDriver) {
     pages.push(2);
@@ -361,23 +376,38 @@ function addCustomerFields(form){
   addEntry(form, E.email, val("email"));
   addEntry(form, E.sig1_name, val("sig1_name"));
 }
-function addVehicleFields(form){
-  for (let i=0;i<vehicleCount.n;i++){
+// פיצול: קבוצה לכל סוג אמצעי תדלוק (לפי סדר הופעה), וכל קבוצה בנתחים של עד 10.
+// ה-PDF וחבילת ה-WeSign נבנים לכל שורת תשובה, ולכן כל נתח = טופס נפרד לחתימה.
+function vehicleBatches(){
+  const groups = new Map();
+  collectVehicles().forEach(v => {
+    if (!groups.has(v.amtsei)) groups.set(v.amtsei, []);
+    groups.get(v.amtsei).push(v);
+  });
+  const batches = [];
+  groups.forEach(list => {
+    for (let k = 0; k < list.length; k += FORM_VEHICLE_SLOTS) batches.push(list.slice(k, k + FORM_VEHICLE_SLOTS));
+  });
+  return batches;
+}
+function addVehicleFields(form, items){
+  for (let i=0;i<items.length;i++){
     const ids = VEHICLE_ENTRIES[i];
-    addEntry(form, ids[0], field("v_amtsei_"+i));
-    addEntry(form, ids[1], field("v_plate_"+i));
-    addEntry(form, ids[2], field("v_phone_"+i));
-    addEntry(form, ids[3], field("v_fuel_"+i));
-    addEntry(form, ids[4], field("v_type_"+i));
-    addEntry(form, ids[5], field("v_day_"+i));
-    addEntry(form, ids[6], field("v_month_"+i));
-    addEntry(form, ids[7], field("v_model_"+i));
-    addEntry(form, ids[8], field("v_year_"+i));
-    addEntry(form, ids[9], field("v_driver_"+i));
-    addEntry(form, ids[10], field("v_dept_"+i));
-    addEntry(form, ids[11], field("v_shtifo_"+i));
+    const v = items[i];
+    addEntry(form, ids[0], v.amtsei);
+    addEntry(form, ids[1], v.plate);
+    addEntry(form, ids[2], v.phone);
+    addEntry(form, ids[3], v.fuel);
+    addEntry(form, ids[4], v.type);
+    addEntry(form, ids[5], v.day);
+    addEntry(form, ids[6], v.month);
+    addEntry(form, ids[7], v.model);
+    addEntry(form, ids[8], v.year);
+    addEntry(form, ids[9], v.driver);
+    addEntry(form, ids[10], v.dept);
+    addEntry(form, ids[11], v.shtifo);
     if (ids[12]) {
-      const more = (i < vehicleCount.n-1)
+      const more = (i < items.length-1)
         ? "כן, הוסף אמצעי תדלוק/רכב נוסף"
         : "לא, סיים את ההזמנה";
       addEntry(form, ids[12], more);
@@ -440,32 +470,52 @@ function addShtifoFields(form){
     }
   }
 }
-function fillFormForType(type){
-  const form = $("#gform");
-  form.innerHTML = "";
+function buildJobForm(job){
+  const type = job.type;
+  const form = document.createElement("form");
+  form.action = GFORM_ACTION;
+  form.method = "POST";
+  form.style.display = "none";
   addHidden(form, "fvv", "1");
-  addHidden(form, "pageHistory", pageHistoryValue(type));
+  addHidden(form, "pageHistory", pageHistoryValue(type, job.vehicles ? job.vehicles.length : 0));
   addHidden(form, "submissionTimestamp", "-1");
   addCustomerFields(form);
   addEntry(form, E.category, categoryValue(type));
-  if (type === "vehicle") addVehicleFields(form);
+  if (type === "vehicle") addVehicleFields(form, job.vehicles);
   if (type === "driver") addDriverFields(form);
   if (type === "master") addMasterFields(form);
   if (type === "sono") addSonoFields(form);
   if (type === "shtifo") addShtifoFields(form);
+  return form;
+}
+// iframe נפרד לכל שליחה: הגשה חוזרת לאותו iframe לפני שהקודמת נטענה
+// מבטלת את הבקשה הקודמת, ובהזמנה מפוצלת יש הרבה שליחות רצופות.
+function submitJob(job, n){
+  const frame = document.createElement("iframe");
+  frame.name = "gform_target_" + n;
+  frame.style.display = "none";
+  document.body.appendChild(frame);
+  const form = buildJobForm(job);
+  form.target = frame.name;
+  document.body.appendChild(form);
+  form.submit();
 }
 function submitToGoogle(){
   const types = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
   if (!types.length || submitted) return;
+  const jobs = [];
+  types.forEach(t => {
+    if (t === "vehicle") vehicleBatches().forEach(b => jobs.push({type: t, vehicles: b}));
+    else jobs.push({type: t});
+  });
   submitted = true;
   $("#nextBtn").disabled = true;
-  $("#nextBtn").textContent = types.length > 1 ? "שולח הזמנות..." : "שולח הזמנה...";
   let i = 0;
   function sendNext(){
-    fillFormForType(types[i]);
-    $("#gform").submit();
+    $("#nextBtn").textContent = jobs.length > 1 ? `שולח הזמנה ${i+1} מתוך ${jobs.length}...` : "שולח הזמנה...";
+    submitJob(jobs[i], i);
     i += 1;
-    if (i < types.length) {
+    if (i < jobs.length) {
       setTimeout(sendNext, 1200);
     } else {
       setTimeout(showSuccess, 900);
@@ -479,7 +529,157 @@ function showSuccess(){
   document.querySelector(".head").style.display = "none";
   $("#successMessage").style.display = "block";
 }
-document.getElementById("hidden_iframe").addEventListener("load", function(){});
+// ---- קליטת הזמנה מקובץ אקסל ----
+// הכותרות זהות ל-scripts/make_template.py. ההתאמה לפי שם הכותרת (לא לפי מיקום),
+// כדי שעמודה שהלקוח הזיז או הוסיף לא תשבש את הקריאה.
+const EXCEL_COLUMNS = [
+  {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
+  {key:"plate",  header:"מס׳ רכב", required:true},
+  {key:"phone",  header:"מס׳ טלפון נהג"},
+  {key:"fuel",   header:"סוג דלק", list:FUEL, required:true},
+  {key:"type",   header:"סוג הרכב", list:VTYPES, required:true},
+  {key:"day",    header:"הגבלה בליטרים ליום"},
+  {key:"month",  header:"הגבלה בליטרים לחודש"},
+  {key:"model",  header:"דגם רכב"},
+  {key:"year",   header:"שנת יצור"},
+  {key:"driver", header:"שם נהג"},
+  {key:"dept",   header:"קוד / שם מחלקה"},
+  {key:"shtifo", header:"שטיפומט", list:SHTIFO.map(o => o.v)}
+];
+const XLSX_URL = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+// גרש וגרשיים עבריים ולטיניים מתחלפים בהקלדה ובהעתקה מוורד, ולכן משווים אחרי נרמול
+function norm(t){
+  return String(t ?? "").replace(/[׳'`’]/g, "'").replace(/[״"“”]/g, '"')
+    .replace(/\*/g, "").replace(/\s+/g, " ").trim();
+}
+function matchList(value, list){
+  const n = norm(value);
+  return list.find(o => norm(o) === n) || null;
+}
+let xlsxLoading = null;
+// הספרייה נטענת רק כשמעלים קובץ, כדי לא להאט את הטופס ללקוח שממלא ידנית
+function loadXlsx(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxLoading) {
+    xlsxLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = XLSX_URL;
+      sc.onload = () => resolve(window.XLSX);
+      sc.onerror = () => { xlsxLoading = null; reject(new Error("load")); };
+      document.head.appendChild(sc);
+    });
+  }
+  return xlsxLoading;
+}
+function findSheetRows(XLSX, wb){
+  const names = wb.SheetNames.includes("הזמנה") ? ["הזמנה", ...wb.SheetNames] : wb.SheetNames;
+  const plateHeader = norm("מס׳ רכב");
+  for (const name of names) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:false, defval:""});
+    const h = rows.findIndex(r => r.some(c => norm(c) === plateHeader));
+    if (h >= 0) return {header: rows[h], data: rows.slice(h + 1), firstRow: h + 2};
+  }
+  return null;
+}
+function parseOrderRows(found){
+  const colIndex = {};
+  const missing = [];
+  EXCEL_COLUMNS.forEach(c => {
+    const idx = found.header.findIndex(h => norm(h) === norm(c.header));
+    if (idx >= 0) colIndex[c.key] = idx;
+    else if (c.required) missing.push(c.header);
+  });
+  if (missing.length) {
+    return {errors: ["חסרות עמודות חובה: " + missing.join(", ") + ". יש להשתמש בתבנית שבקישור."], items: []};
+  }
+  const items = [];
+  const errors = [];
+  found.data.forEach((row, r) => {
+    const rowNo = found.firstRow + r;
+    const raw = {};
+    EXCEL_COLUMNS.forEach(c => {
+      raw[c.key] = colIndex[c.key] === undefined ? "" : String(row[colIndex[c.key]] ?? "").trim();
+    });
+    if (!Object.values(raw).some(Boolean)) return;
+    const item = {};
+    const rowErr = [];
+    EXCEL_COLUMNS.forEach(c => {
+      let v = raw[c.key];
+      if (c.key === "shtifo" && !v) v = "לא";
+      if (!v) {
+        if (c.required) rowErr.push(`חסר «${c.header}»`);
+        item[c.key] = "";
+        return;
+      }
+      if (c.list) {
+        const m = matchList(v, c.list);
+        if (!m) { rowErr.push(`«${v}» אינו ערך תקין ב«${c.header}»`); return; }
+        v = m;
+      }
+      item[c.key] = v;
+    });
+    if (rowErr.length) errors.push(`שורה ${rowNo}: ${rowErr.join("; ")}`);
+    else items.push(item);
+  });
+  if (!items.length && !errors.length) errors.push("לא נמצאו רכבים בקובץ.");
+  if (items.length > MAX_VEHICLES) {
+    errors.push(`הקובץ מכיל ${items.length} רכבים. המקסימום בהזמנה אחת הוא ${MAX_VEHICLES}.`);
+  }
+  const seen = new Set();
+  items.forEach(it => {
+    const k = it.plate.replace(/\D/g, "");
+    if (k && seen.has(k)) errors.push(`מס׳ רכב ${it.plate} מופיע יותר מפעם אחת.`);
+    seen.add(k);
+  });
+  return {errors, items};
+}
+function showImportResult(ok, html){
+  const box = $("#excelResult");
+  box.className = "import-result " + (ok ? "ok" : "bad");
+  box.innerHTML = html;
+  box.style.display = "block";
+}
+async function importExcel(file){
+  let XLSX;
+  try { XLSX = await loadXlsx(); }
+  catch (e) {
+    showImportResult(false, "לא ניתן לטעון את רכיב קריאת האקסל. בדקו את החיבור לאינטרנט ונסו שוב.");
+    return;
+  }
+  let found;
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    found = findSheetRows(XLSX, wb);
+  } catch (e) {
+    showImportResult(false, "לא ניתן לקרוא את הקובץ. יש להעלות קובץ אקסל (xlsx) לפי התבנית.");
+    return;
+  }
+  if (!found) {
+    showImportResult(false, "לא נמצאה שורת כותרות בקובץ. יש להשתמש בתבנית שבקישור.");
+    return;
+  }
+  const {errors, items} = parseOrderRows(found);
+  if (errors.length) {
+    const shown = errors.slice(0, 15).map(e => `<li>${esc(e)}</li>`).join("");
+    const more = errors.length > 15 ? `<li>ועוד ${errors.length - 15} שגיאות...</li>` : "";
+    showImportResult(false, `<b>הקובץ לא נקלט. יש לתקן ולהעלות שוב:</b><ul>${shown}${more}</ul>`);
+    return;
+  }
+  // קובץ מחליף את הרכבים שכבר הוזנו, כדי שהעלאה חוזרת של קובץ מתוקן לא תכפיל רכבים
+  $("#vehiclesList").innerHTML = "";
+  vehicleCount.n = 0;
+  items.forEach(it => addVehicle(it));
+  const batches = vehicleBatches();
+  const split = batches.length > 1
+    ? `<br>ההזמנה תישלח כ-${batches.length} טפסים נפרדים (עד ${FORM_VEHICLE_SLOTS} רכבים בטופס, טופס נפרד לכל סוג אמצעי תדלוק).`
+    : "";
+  showImportResult(true, `<b>נקלטו ${items.length} רכבים מהקובץ.</b> אפשר לבדוק ולתקן אותם למטה לפני ההמשך.${split}`);
+}
+$("#excelFile").addEventListener("change", (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (file) importExcel(file);
+});
 document.querySelectorAll('input[name="order_type"]').forEach(el => {
   el.addEventListener("change", () => {
     if (el.value==="vehicle" && el.checked && vehicleCount.n===0) addVehicle();
