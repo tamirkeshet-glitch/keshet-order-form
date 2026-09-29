@@ -92,15 +92,6 @@ module.exports = async (req, res) => {
   } catch (err) {
     // בלי פרטים ללקוח; הדף מתייחס לזה כ"אין תשובה" וממשיך לנסות
     console.error("receipt:", err.message);
-    // זמני לאבחון: רק צורת הערכים (קיום, אורך, תבנית), לא הערכים עצמם
-    const shape = {
-      upper: ["CLIENT_ID","CLIENT_SECRET","REFRESH_TOKEN"].map(k => k + ":" + (process.env["GOOGLE_" + k] || "").length).join(","),
-      lower: ["client_id","client_secret","refresh_token"].map(k => k + ":" + (process.env[k] || "").length).join(","),
-      idLooksRight: envOf("client_id").endsWith(".apps.googleusercontent.com"),
-      secretLooksRight: envOf("client_secret").startsWith("GOCSPX-"),
-      tokenLooksRight: envOf("refresh_token").startsWith("1//"),
-      names: Object.keys(process.env).filter(k => /google|token|client|secret|refresh/i.test(k))
-    };
-    res.status(502).json({ok: false, error: "upstream", shape, stage: /^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
+    res.status(502).json({ok: false, error: "upstream", stage: /^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
   }
 };
