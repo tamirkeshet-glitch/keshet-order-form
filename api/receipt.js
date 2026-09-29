@@ -85,9 +85,6 @@ module.exports = async (req, res) => {
   } catch (err) {
     // בלי פרטים ללקוח; הדף מתייחס לזה כ"אין תשובה" וממשיך לנסות
     console.error("receipt:", err.message);
-    // רק האם המשתנה קיים ואורכו - לא הערך - כדי לאבחן הגדרה חסרה בלי לחשוף סוד
-    const present = ["client_id","client_secret","refresh_token"]
-      .map(k => k + ":" + (envOf(k) ? envOf(k).length : 0)).join(",");
-    res.status(502).json({ok: false, error: "upstream", env: present, vercelEnv: process.env.VERCEL_ENV, stage:/^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
+    res.status(502).json({ok: false, error: "upstream", stage: /^(token|sheets) \d+$/.test(err.message) ? err.message : (envOf("refresh_token") ? "other" : "no-env")});
   }
 };
