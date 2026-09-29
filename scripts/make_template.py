@@ -6,7 +6,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.worksheet.datavalidation import DataValidation
 
 HEADERS = ["סוג אמצעי תדלוק", "מס׳ רכב", "מס׳ טלפון נהג", "סוג דלק", "סוג הרכב",
-           "הגבלה בליטרים ליום", "הגבלה בליטרים לחודש", "דגם רכב", "שנת יצור",
+           "הגבלה בליטרים ליום", "הגבלה בליטרים לחודש", "הגבלת אוריאה ליום", "הגבלת אוריאה לחודש", "דגם רכב", "שנת יצור",
            "שם נהג", "קוד / שם מחלקה", "שטיפומט"]
 REQUIRED = {0, 1, 3, 4}
 AMTSEI = ["כרטיס רכב", "דלקן א'", "דלקן ב (רושם ק\"מ)", "דלקן אוריאה", "כרטיס אוריאה"]
@@ -30,7 +30,7 @@ for c, h in enumerate(HEADERS, 1):
 ws.row_dimensions[1].height = 32
 ws.freeze_panes = "A2"
 # מספר רכב, טלפון ושנה כטקסט - אחרת אקסל מוחק אפס מוביל
-for col in "BCI":
+for col in "BCK":
     for r in range(2, ROWS + 2):
         ws[f"{col}{r}"].number_format = "@"
 
@@ -50,7 +50,7 @@ def dropdown(col, list_col, n):
 dropdown("A", "A", len(AMTSEI))
 dropdown("D", "B", len(FUEL))
 dropdown("E", "C", len(VTYPES))
-dropdown("L", "D", len(SHTIFO))
+dropdown("N", "D", len(SHTIFO))
 
 help_ws = wb.create_sheet("הוראות", 0)
 help_ws.sheet_view.rightToLeft = True
@@ -61,6 +61,8 @@ lines = [
     "1. ממלאים שורה לכל רכב בגיליון «הזמנה». עמודות באדום (*) הן חובה.",
     "2. בעמודות עם רשימה נפתחת בוחרים ערך מהרשימה בלבד.",
     "3. שטיפומט: «לא», או מספר השטיפות בחודש (1 עד 5). ריק = «לא».",
+    "   הגבלה ריקה = 70 ליטר ליום ו-800 ליטר לחודש.",
+    "   הגבלת אוריאה ממלאים רק כשסוג הדלק «גולדיזל + אוריאה».",
     "4. אין לשנות את שורת הכותרות ואין להוסיף עמודות.",
     "5. שומרים את הקובץ ומעלים אותו בטופס, במסך «דלקן / כרטיס רכב».",
     "",
