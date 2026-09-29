@@ -143,17 +143,19 @@ function addVehicle(preset){
   wrap.dataset.v = i;
   wrap.innerHTML = `
     <td class="col-num">${i+1}</td>
-    <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
     <td><input type="text" name="v_plate_${i}"></td>
     <td>${sel("v_fuel_"+i, FUEL, true)}</td>
+    <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
     <td>${sel("v_type_"+i, VTYPES, true)}</td>
-    <td>${shtifoSel("v_shtifo_"+i)}</td>
-    <td><input type="text" inputmode="numeric" name="v_day_${i}"></td>
-    <td><input type="text" inputmode="numeric" name="v_month_${i}"></td>
-    <td><input type="tel" name="v_phone_${i}"></td>
-    <td><input type="text" name="v_driver_${i}"></td>
     <td><input type="text" name="v_model_${i}"></td>
     <td><input type="text" inputmode="numeric" name="v_year_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="v_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
+    <td><input type="text" inputmode="numeric" name="v_month_${i}" placeholder="${DEFAULT_MONTH_L}"></td>
+    <td><input type="text" inputmode="numeric" name="v_uday_${i}" placeholder="${DEFAULT_DAY_L}" disabled></td>
+    <td><input type="text" inputmode="numeric" name="v_umonth_${i}" placeholder="${DEFAULT_MONTH_L}" disabled></td>
+    <td><input type="tel" name="v_phone_${i}"></td>
+    <td><input type="text" name="v_driver_${i}"></td>
+    <td>${shtifoSel("v_shtifo_"+i)}</td>
     <td><input type="text" name="v_dept_${i}"></td>
     <td class="col-act"><button type="button" class="btn-remove" data-remove="vehicle" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#vehiclesList").appendChild(wrap);
@@ -170,7 +172,23 @@ function addVehicle(preset){
     setField("v_driver_"+i, preset.driver);
     setField("v_dept_"+i, preset.dept);
     setField("v_shtifo_"+i, preset.shtifo);
+    setField("v_uday_"+i, preset.uday);
+    setField("v_umonth_"+i, preset.umonth);
   }
+  // הגבלת האוריאה פתוחה רק כשנבחר «גולדיזל + אוריאה» - ר' orderedVehicles
+  const fuelSel = wrap.querySelector(`[name="v_fuel_${i}"]`);
+  const syncUrea = () => {
+    const on = fuelSel.value === DIESEL_UREA;
+    // disabled לבד השאיר את השדות גלויים (עם placeholder) בכל שורה, גם בבנזין.
+    // urea-off מסתיר את התוכן בטבלה ואת כל השורה בכרטיס של הטלפון.
+    ["v_uday_", "v_umonth_"].forEach(n => {
+      const el = wrap.querySelector(`[name="${n}${i}"]`);
+      el.disabled = !on;
+      el.closest("td").classList.toggle("urea-off", !on);
+    });
+  };
+  fuelSel.addEventListener("change", syncUrea);
+  syncUrea();
   $("#addVehicle").style.display = vehicleCount.n >= MAX_VEHICLES ? "none" : "inline-block";
   $("#vehicleCountNote").textContent = vehicleCount.n ? `${vehicleCount.n} רכבים בטבלה` : "";
 }
@@ -202,8 +220,8 @@ function addDriver(preset){
     <td><input type="text" name="d_name_${i}"></td>
     <td><input type="text" inputmode="numeric" name="d_id_${i}"></td>
     <td>${sel("d_fuel_"+i, FUEL_ALL, true)}</td>
-    <td><input type="text" inputmode="numeric" name="d_day_${i}"></td>
-    <td><input type="text" inputmode="numeric" name="d_month_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="d_day_${i}" placeholder="${DEFAULT_DAY_L}"></td>
+    <td><input type="text" inputmode="numeric" name="d_month_${i}" placeholder="${DEFAULT_MONTH_L}"></td>
     <td class="col-act"><button type="button" class="btn-remove" data-remove="driver" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#driversList").appendChild(wrap);
   if (preset) {
@@ -222,7 +240,8 @@ function collectVehicles(){
       amtsei: field("v_amtsei_"+i), plate: field("v_plate_"+i), phone: field("v_phone_"+i),
       fuel: field("v_fuel_"+i), type: field("v_type_"+i), day: field("v_day_"+i),
       month: field("v_month_"+i), model: field("v_model_"+i), year: field("v_year_"+i),
-      driver: field("v_driver_"+i), dept: field("v_dept_"+i), shtifo: field("v_shtifo_"+i)
+      driver: field("v_driver_"+i), dept: field("v_dept_"+i), shtifo: field("v_shtifo_"+i),
+      uday: field("v_uday_"+i), umonth: field("v_umonth_"+i)
     });
   }
   return items;
@@ -287,18 +306,18 @@ function validate(){
   if (panel==="vehicle") {
     if (vehicleCount.n===0) return need(false);
     for (let i=0;i<vehicleCount.n;i++){
-      if (!field("v_amtsei_"+i) || !field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_type_"+i) || !field("v_shtifo_"+i))
-        return need(false);
+      if (!field("v_plate_"+i) || !field("v_fuel_"+i) || !field("v_amtsei_"+i) || !field("v_type_"+i) || !field("v_phone_"+i))
+        return need(false, `ברכב ${i+1} חסר אחד משדות החובה: מס׳ רכב, סוג דלק, סוג אמצעי תדלוק, סוג הרכב, טלפון נהג.`);
     }
   }
   if (panel==="driver") {
     if (driverCount.n===0) return need(false);
     for (let i=0;i<driverCount.n;i++){
-      if (!field("d_name_"+i) || !field("d_id_"+i) || !field("d_fuel_"+i) || !field("d_month_"+i)) return need(false);
+      if (!field("d_name_"+i) || !field("d_id_"+i) || !field("d_fuel_"+i)) return need(false);
     }
   }
   if (panel==="master") {
-    return need(val("master_qty") && val("master_fuel") && val("master_month"));
+    return need(val("master_qty") && val("master_fuel"));
   }
   if (panel==="sono") {
     return need(radio("sono_fuel"));
@@ -335,11 +354,11 @@ function buildSummary(){
   const list = jobs.map((j, k) => `<li><b>טופס ${k+1}:</b> ${jobSummaryLabel(j)}</li>`).join("");
   let vehicles = "";
   if (wants("vehicle") && vehicleCount.n) {
-    const rows = collectVehicles().map((v, k) =>
-      `<tr><td>${k+1}</td><td>${esc(v.amtsei)}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td>` +
-      `<td>${esc(v.type)}</td><td>${esc(v.shtifo)}</td><td>${esc(v.month)}</td></tr>`).join("");
-    vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>אמצעי</th><th>מס׳ רכב</th>` +
-      `<th>דלק</th><th>סוג רכב</th><th>שטיפומט</th><th>ליטר לחודש</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const rows = orderedVehicles().map((v, k) =>
+      `<tr><td>${k+1}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td><td>${esc(v.amtsei)}</td>` +
+      `<td>${esc(v.type)}</td><td>${esc(v.day)}</td><td>${esc(v.month)}</td><td>${esc(v.phone)}</td><td>${esc(v.shtifo)}</td></tr>`).join("");
+    vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>מס׳ רכב</th><th>דלק</th>` +
+      `<th>אמצעי</th><th>סוג רכב</th><th>ליטר ליום</th><th>ליטר לחודש</th><th>טלפון נהג</th><th>שטיפומט</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   $("#summary").innerHTML = `<div>${customer}</div><h3 class="summary-h">${title}</h3><ol class="doc-list">${list}</ol>${vehicles}`;
   $("#summary").querySelectorAll("table.vtable").forEach(labelTableRows);
@@ -386,15 +405,56 @@ function addCustomerFields(form){
 }
 // פיצול: קבוצה לכל סוג אמצעי תדלוק (לפי סדר הופעה), וכל קבוצה בנתחים של עד 10.
 // ה-PDF וחבילת ה-WeSign נבנים לכל שורת תשובה, ולכן כל נתח = טופס נפרד לחתימה.
+// «גולדיזל + אוריאה» הוא שני אמצעי תדלוק נפרדים, ולכן לפני השליחה הרכב מתפצל
+// לשתי שורות: גולדיזל באמצעי שנבחר, ואוריאה באמצעי האוריאה המקביל (החלטת
+// תמיר 29/09). השטיפומט נשאר רק בשורת הגולדיזל, כדי שלא יוזמן פעמיים.
+// הערך המשולב עצמו לא נשלח לגוגל, כך שאין תלות בכך שהוא קיים ברשימת הטופס.
+const DIESEL_UREA = "גולדיזל + אוריאה";
+// הגבלה שנשלחת כשהלקוח השאיר את השדה ריק, לכל אמצעי תדלוק (החלטת תמיר 29/09).
+// מוצגת כ-placeholder בשדה, כדי שהלקוח יידע מה ייכנס אם לא ימלא.
+const DEFAULT_DAY_L = "70";
+const DEFAULT_MONTH_L = "800";
+function withDefault(v, d){ return v ? v : d; }
+// «שטיפומט» היא שאלת חובה בטופס גוגל (build_intake_form), ושליחה בלי ערך בה
+// נדחית כולה בלי שגיאה גלויה. אצל הלקוח היא רשות, ולכן ריק נשלח כ«לא».
+// «סוג הרכב» חובה גם אצל הלקוח (תמיר, 29/09), ולכן אין לו ברירת מחדל.
+const DEFAULT_SHTIFO = "לא";
+function ureaAmtsei(amtsei){
+  if (amtsei.indexOf("אוריאה") !== -1) return amtsei;
+  return amtsei.indexOf("דלקן") !== -1 ? "דלקן אוריאה" : "כרטיס אוריאה";
+}
+function orderedVehicles(){
+  const withLimits = v => Object.assign({}, v, {
+    day: withDefault(v.day, DEFAULT_DAY_L), month: withDefault(v.month, DEFAULT_MONTH_L),
+    shtifo: withDefault(v.shtifo, DEFAULT_SHTIFO)
+  });
+  return collectVehicles().flatMap(v => v.fuel !== DIESEL_UREA ? [withLimits(v)] : [
+    withLimits(Object.assign({}, v, {fuel: "גולדיזל (סולר)", pairNext: true})),
+    // לאוריאה הגבלה נפרדת משלה, לא של הגולדיזל. group = האמצעי של הגולדיזל,
+    // כדי ששורת האוריאה תישאר באותו טופס ובאותו PDF (תמיר, 29/09)
+    withLimits(Object.assign({}, v, {fuel: "אוריאה", amtsei: ureaAmtsei(v.amtsei), shtifo: "לא",
+      day: v.uday, month: v.umonth, group: v.amtsei}))
+  ]);
+}
 function vehicleBatches(){
   const groups = new Map();
-  collectVehicles().forEach(v => {
-    if (!groups.has(v.amtsei)) groups.set(v.amtsei, []);
-    groups.get(v.amtsei).push(v);
+  orderedVehicles().forEach(v => {
+    const key = v.group || v.amtsei;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
   });
+  // עד 10 שורות בטופס, בלי להפריד זוג גולדיזל/אוריאה בין שני טפסים
   const batches = [];
   groups.forEach(list => {
-    for (let k = 0; k < list.length; k += FORM_VEHICLE_SLOTS) batches.push(list.slice(k, k + FORM_VEHICLE_SLOTS));
+    let cur = [];
+    list.forEach((v, k) => {
+      const need = v.pairNext ? 2 : 1;
+      if (cur.length && (cur.length + need > FORM_VEHICLE_SLOTS) && !(k > 0 && list[k-1].pairNext)) {
+        batches.push(cur); cur = [];
+      }
+      cur.push(v);
+    });
+    if (cur.length) batches.push(cur);
   });
   return batches;
 }
@@ -428,8 +488,8 @@ function addDriverFields(form){
     addEntry(form, ids.name, field("d_name_"+i));
     addEntry(form, ids.id, field("d_id_"+i));
     addEntry(form, ids.fuel, field("d_fuel_"+i));
-    addEntry(form, ids.day, field("d_day_"+i));
-    addEntry(form, ids.month, field("d_month_"+i));
+    addEntry(form, ids.day, withDefault(field("d_day_"+i), DEFAULT_DAY_L));
+    addEntry(form, ids.month, withDefault(field("d_month_"+i), DEFAULT_MONTH_L));
     if (ids.more) {
       const more = (i < driverCount.n-1)
         ? "כן, הזמן כרטיס נהג נוסף"
@@ -441,8 +501,8 @@ function addDriverFields(form){
 function addMasterFields(form){
   addEntry(form, E.master_qty, val("master_qty"));
   addEntry(form, E.master_fuel, val("master_fuel"));
-  addEntry(form, E.master_day, val("master_day"));
-  addEntry(form, E.master_month, val("master_month"));
+  addEntry(form, E.master_day, withDefault(val("master_day"), DEFAULT_DAY_L));
+  addEntry(form, E.master_month, withDefault(val("master_month"), DEFAULT_MONTH_L));
 }
 function addSonoFields(form){
   addEntry(form, E.sono_fuel, radio("sono_fuel"));
@@ -655,18 +715,20 @@ function showSuccess(docCount){
 // הכותרות זהות ל-scripts/make_template.py. ההתאמה לפי שם הכותרת (לא לפי מיקום),
 // כדי שעמודה שהלקוח הזיז או הוסיף לא תשבש את הקריאה.
 const EXCEL_COLUMNS = [
-  {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
   {key:"plate",  header:"מס׳ רכב", required:true},
-  {key:"phone",  header:"מס׳ טלפון נהג"},
   {key:"fuel",   header:"סוג דלק", list:FUEL, required:true},
+  {key:"amtsei", header:"סוג אמצעי תדלוק", list:AMTSEI, required:true},
   {key:"type",   header:"סוג הרכב", list:VTYPES, required:true},
-  {key:"day",    header:"הגבלה בליטרים ליום"},
-  {key:"month",  header:"הגבלה בליטרים לחודש"},
   {key:"model",  header:"דגם רכב"},
   {key:"year",   header:"שנת יצור"},
+  {key:"day",    header:"הגבלה בליטרים ליום"},
+  {key:"month",  header:"הגבלה בליטרים לחודש"},
+  {key:"uday",   header:"הגבלת אוריאה ליום"},
+  {key:"umonth", header:"הגבלת אוריאה לחודש"},
+  {key:"phone",  header:"מס׳ טלפון נהג", required:true},
   {key:"driver", header:"שם נהג"},
-  {key:"dept",   header:"קוד / שם מחלקה"},
-  {key:"shtifo", header:"שטיפומט", list:SHTIFO.map(o => o.v)}
+  {key:"shtifo", header:"שטיפומט", list:SHTIFO.map(o => o.v)},
+  {key:"dept",   header:"קוד / שם מחלקה"}
 ];
 const XLSX_URL = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
 // גרש וגרשיים עבריים ולטיניים מתחלפים בהקלדה ובהעתקה מוורד, ולכן משווים אחרי נרמול
@@ -693,8 +755,15 @@ function loadXlsx(){
   }
   return xlsxLoading;
 }
-function findSheetRows(XLSX, wb){
-  const names = wb.SheetNames.includes("הזמנה") ? ["הזמנה", ...wb.SheetNames] : wb.SheetNames;
+// רכבי שטיפומט: תבנית נפרדת (order-template-shtifomat.xlsx, scripts/make_shtifomat_template.py)
+const SHTIFO_EXCEL_COLUMNS = [
+  {key:"plate", header:"מס׳ רכב", required:true},
+  {key:"type",  header:"סוג הרכב", list:SHTIFO_VTYPES, required:true},
+  {key:"qty",   header:"כמות שטיפות בחודש", list:["1","2","3","4","5"], required:true}
+];
+function findSheetRows(XLSX, wb, preferredSheet){
+  const pref = preferredSheet || "הזמנה";
+  const names = wb.SheetNames.includes(pref) ? [pref, ...wb.SheetNames] : wb.SheetNames;
   const plateHeader = norm("מס׳ רכב");
   for (const name of names) {
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:false, defval:""});
@@ -703,10 +772,12 @@ function findSheetRows(XLSX, wb){
   }
   return null;
 }
-function parseOrderRows(found){
+function parseOrderRows(found, columns, max){
+  columns = columns || EXCEL_COLUMNS;
+  max = max || MAX_VEHICLES;
   const colIndex = {};
   const missing = [];
-  EXCEL_COLUMNS.forEach(c => {
+  columns.forEach(c => {
     const idx = found.header.findIndex(h => norm(h) === norm(c.header));
     if (idx >= 0) colIndex[c.key] = idx;
     else if (c.required) missing.push(c.header);
@@ -719,13 +790,13 @@ function parseOrderRows(found){
   found.data.forEach((row, r) => {
     const rowNo = found.firstRow + r;
     const raw = {};
-    EXCEL_COLUMNS.forEach(c => {
+    columns.forEach(c => {
       raw[c.key] = colIndex[c.key] === undefined ? "" : String(row[colIndex[c.key]] ?? "").trim();
     });
     if (!Object.values(raw).some(Boolean)) return;
     const item = {};
     const rowErr = [];
-    EXCEL_COLUMNS.forEach(c => {
+    columns.forEach(c => {
       let v = raw[c.key];
       if (c.key === "shtifo" && !v) v = "לא";
       if (!v) {
@@ -744,8 +815,8 @@ function parseOrderRows(found){
     else items.push(item);
   });
   if (!items.length && !errors.length) errors.push("לא נמצאו רכבים בקובץ.");
-  if (items.length > MAX_VEHICLES) {
-    errors.push(`הקובץ מכיל ${items.length} רכבים. המקסימום בהזמנה אחת הוא ${MAX_VEHICLES}.`);
+  if (items.length > max) {
+    errors.push(`הקובץ מכיל ${items.length} רכבים. המקסימום בהזמנה אחת הוא ${max}.`);
   }
   const seen = new Set();
   items.forEach(it => {
@@ -755,38 +826,54 @@ function parseOrderRows(found){
   });
   return {errors, items};
 }
-function showImportResult(ok, html){
-  const box = $("#excelResult");
+function showImportResult(ok, html, boxSel){
+  const box = $(boxSel || "#excelResult");
   box.className = "import-result " + (ok ? "ok" : "bad");
   box.innerHTML = html;
   box.style.display = "block";
 }
-async function importExcel(file){
+// קורא קובץ ומחזיר פריטים תקינים, או null אחרי שהשגיאה כבר הוצגה בתיבה
+async function readExcelItems(file, columns, max, sheet, boxSel){
   let XLSX;
   try { XLSX = await loadXlsx(); }
   catch (e) {
-    showImportResult(false, "לא ניתן לטעון את רכיב קריאת האקסל. בדקו את החיבור לאינטרנט ונסו שוב.");
-    return;
+    showImportResult(false, "לא ניתן לטעון את רכיב קריאת האקסל. בדקו את החיבור לאינטרנט ונסו שוב.", boxSel);
+    return null;
   }
   let found;
   try {
     const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
-    found = findSheetRows(XLSX, wb);
+    found = findSheetRows(XLSX, wb, sheet);
   } catch (e) {
-    showImportResult(false, "לא ניתן לקרוא את הקובץ. יש להעלות קובץ אקסל (xlsx) לפי התבנית.");
-    return;
+    showImportResult(false, "לא ניתן לקרוא את הקובץ. יש להעלות קובץ אקסל (xlsx) לפי התבנית.", boxSel);
+    return null;
   }
   if (!found) {
-    showImportResult(false, "לא נמצאה שורת כותרות בקובץ. יש להשתמש בתבנית שבקישור.");
-    return;
+    showImportResult(false, "לא נמצאה שורת כותרות בקובץ. יש להשתמש בתבנית שבקישור.", boxSel);
+    return null;
   }
-  const {errors, items} = parseOrderRows(found);
+  const {errors, items} = parseOrderRows(found, columns, max);
   if (errors.length) {
     const shown = errors.slice(0, 15).map(e => `<li>${esc(e)}</li>`).join("");
     const more = errors.length > 15 ? `<li>ועוד ${errors.length - 15} שגיאות...</li>` : "";
-    showImportResult(false, `<b>הקובץ לא נקלט. יש לתקן ולהעלות שוב:</b><ul>${shown}${more}</ul>`);
-    return;
+    showImportResult(false, `<b>הקובץ לא נקלט. יש לתקן ולהעלות שוב:</b><ul>${shown}${more}</ul>`, boxSel);
+    return null;
   }
+  return items;
+}
+async function importShtifoExcel(file){
+  const items = await readExcelItems(file, SHTIFO_EXCEL_COLUMNS, MAX_SHTIFO, "שטיפומט", "#shtifoExcelResult");
+  if (!items) return;
+  // קובץ מחליף את הרכבים שכבר הוזנו, כמו בהעלאת הרכבים
+  $("#shtifoList").innerHTML = "";
+  shtifoCount.n = 0;
+  items.forEach(it => addShtifoVehicle(it));
+  saveDraft();
+  showImportResult(true, `<b>נקלטו ${items.length} רכבים מהקובץ.</b> כולם ייכנסו לטופס שטיפומט אחד. אפשר לבדוק ולתקן אותם למטה לפני ההמשך.`, "#shtifoExcelResult");
+}
+async function importExcel(file){
+  const items = await readExcelItems(file, EXCEL_COLUMNS, MAX_VEHICLES, "הזמנה", "#excelResult");
+  if (!items) return;
   // קובץ מחליף את הרכבים שכבר הוזנו, כדי שהעלאה חוזרת של קובץ מתוקן לא תכפיל רכבים
   $("#vehiclesList").innerHTML = "";
   vehicleCount.n = 0;
@@ -802,6 +889,11 @@ $("#excelFile").addEventListener("change", (ev) => {
   const file = ev.target.files && ev.target.files[0];
   ev.target.value = "";
   if (file) importExcel(file);
+});
+$("#shtifoExcelFile").addEventListener("change", (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (file) importShtifoExcel(file);
 });
 document.querySelectorAll('input[name="order_type"]').forEach(el => {
   el.addEventListener("change", () => {
