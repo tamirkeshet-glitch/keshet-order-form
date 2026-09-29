@@ -13,6 +13,10 @@ const GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em
 // לגיליון ועובדו.
 // הפונקציה ב-api/receipt.js (Vercel). ריק = בלי בדיקת קבלה (הודעת הצלחה כמו קודם).
 const STATUS_URL = "/api/receipt";
+// מרווח בין שליחות רצופות לגוגל. ב-1.2 שניות אחת מ-6 שליחות אבדה בבדיקה
+// של 29/09 (לא הגיעה לגיליון). 3 שניות מקטינות את הסיכוי, ובדיקת הקבלה
+// ו"שליחה חוזרת" עדיין מכסות את מה שבכל זאת אובד.
+const SUBMIT_GAP_MS = 3000;
 const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
@@ -551,7 +555,7 @@ function submitToGoogle(){
       submitJob(jobs[i], sendCounter++);
       i += 1;
       if (i < jobs.length) {
-        setTimeout(sendNext, 1200);
+        setTimeout(sendNext, SUBMIT_GAP_MS);
       } else {
         setTimeout(() => { showSuccess(jobs.length); trackReceipt(jobs, before); }, 900);
       }
@@ -636,7 +640,7 @@ function showResend(missing, before){
     (function next(){
       submitJob(missing[i], sendCounter++);
       i += 1;
-      if (i < missing.length) setTimeout(next, 1200);
+      if (i < missing.length) setTimeout(next, SUBMIT_GAP_MS);
       else setTimeout(() => trackReceipt(missing, before), 900);
     })();
   });
