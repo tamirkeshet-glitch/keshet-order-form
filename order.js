@@ -9,6 +9,10 @@ const PANEL_LABELS = {
   summary: "שליחה"
 };
 const GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSegKo4OEzIhcsr8Em5z8o_FMqgi4Of9LZ2TRteHulMMGGC3Kw/formResponse";
+// פריסת Apps Script נפרדת (גישה: Anyone, גם אנונימי) שעונה אם השורות הגיעו
+// לגיליון - ר' orderStatusJson_ ב-intake_processing_automation.gs.
+// ריק = בלי בדיקת קבלה (הודעת הצלחה כמו קודם).
+const STATUS_URL = "";
 const PRODUCT_PANELS = ["vehicle","driver","master","sono","shtifo"];
 const CATEGORY_MAP = {
   vehicle: "כרטיס רכב או דלקן",
@@ -525,19 +529,105 @@ function submitToGoogle(){
   });
   submitted = true;
   $("#nextBtn").disabled = true;
+  $("#nextBtn").textContent = "שולח הזמנה...";
   clearDraft();
-  let i = 0;
-  function sendNext(){
-    $("#nextBtn").textContent = jobs.length > 1 ? `שולח הזמנה ${i+1} מתוך ${jobs.length}...` : "שולח הזמנה...";
-    submitJob(jobs[i], i);
-    i += 1;
-    if (i < jobs.length) {
-      setTimeout(sendNext, 1200);
-    } else {
-      setTimeout(() => showSuccess(jobs.length), 900);
+  // מצב הגיליון לפני השליחה: סופרים רק שורות חדשות, בלי להסתמך על שעון המחשב של הלקוח
+  fetchStatus().then(before => {
+    let i = 0;
+    function sendNext(){
+      $("#nextBtn").textContent = jobs.length > 1 ? `שולח הזמנה ${i+1} מתוך ${jobs.length}...` : "שולח הזמנה...";
+      submitJob(jobs[i], sendCounter++);
+      i += 1;
+      if (i < jobs.length) {
+        setTimeout(sendNext, 1200);
+      } else {
+        setTimeout(() => { showSuccess(jobs.length); trackReceipt(jobs, before); }, 900);
+      }
     }
+    sendNext();
+  });
+}
+let sendCounter = 0;
+// ---- אישור קבלה ----
+function fetchStatus(){
+  if (!STATUS_URL) return Promise.resolve(null);
+  const url = `${STATUS_URL}?check=1&hp=${encodeURIComponent(val("hp"))}&email=${encodeURIComponent(val("email"))}&t=${Date.now()}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  return fetch(url, {signal: ctrl.signal})
+    .then(r => r.json())
+    .then(d => (d && d.ok ? d.rows : null))
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
+}
+function jobLabel(job){
+  if (job.type === "vehicle") return `${job.vehicles[0].amtsei} · ${job.vehicles.length} רכבים`;
+  return CATEGORY_MAP[job.type];
+}
+const RECEIPT_TEXT = {
+  wait: "ממתין לאישור קבלה...",
+  processing: "התקבל, בעיבוד",
+  ok: "התקבל ✓",
+  error: "התקבל, אבל נכשל בעיבוד. ניצור איתך קשר.",
+  missing: "לא אושרה קבלה"
+};
+function renderReceipt(jobs, states){
+  $("#receiptList").innerHTML = jobs.map((job, k) =>
+    `<li class="rc-${states[k]}"><span>טופס ${k+1}: ${esc(jobLabel(job))}</span><b>${RECEIPT_TEXT[states[k]]}</b></li>`
+  ).join("");
+}
+// משייך שורות חדשות בגיליון לטפסים שנשלחו, לפי קטגוריה ולפי סדר השליחה
+function matchReceipt(jobs, before, rows){
+  const seen = {};
+  (before || []).forEach(r => { seen[r.category] = (seen[r.category] || 0) + 1; });
+  const fresh = {};
+  rows.slice().sort((a, b) => a.at - b.at).forEach(r => {
+    if (seen[r.category] > 0) { seen[r.category]--; return; }
+    (fresh[r.category] = fresh[r.category] || []).push(r.state);
+  });
+  return jobs.map(job => {
+    const list = fresh[CATEGORY_MAP[job.type]];
+    return list && list.length ? list.shift() : "wait";
+  });
+}
+function trackReceipt(jobs, before){
+  if (!STATUS_URL) return;
+  $("#receipt").style.display = "block";
+  let states = jobs.map(() => "wait");
+  renderReceipt(jobs, states);
+  const started = Date.now();
+  const LIMIT_MS = 4 * 60000;
+  function poll(){
+    fetchStatus().then(rows => {
+      if (rows) states = matchReceipt(jobs, before, rows);
+      renderReceipt(jobs, states);
+      const done = states.every(st => st === "ok" || st === "error");
+      if (done) return;
+      if (Date.now() - started < LIMIT_MS) { setTimeout(poll, 6000); return; }
+      states = states.map(st => st === "wait" ? "missing" : st);
+      renderReceipt(jobs, states);
+      const missing = jobs.filter((_, k) => states[k] === "missing");
+      if (missing.length) showResend(missing, before);
+    });
   }
-  sendNext();
+  setTimeout(poll, 5000);
+}
+function showResend(missing, before){
+  const box = $("#receiptHelp");
+  box.innerHTML = `לא קיבלנו אישור ל-${missing.length === 1 ? "טופס אחד" : missing.length + " טפסים"}. ` +
+    `אפשר לשלוח שוב, או לפנות אלינו בטלפון ולציין את שם הלקוח. ` +
+    `<button type="button" class="btn btn-primary" id="resendBtn">שליחה חוזרת</button>`;
+  box.style.display = "block";
+  $("#resendBtn").addEventListener("click", () => {
+    box.style.display = "none";
+    let i = 0;
+    (function next(){
+      submitJob(missing[i], sendCounter++);
+      i += 1;
+      if (i < missing.length) setTimeout(next, 1200);
+      else setTimeout(() => trackReceipt(missing, before), 900);
+    })();
+  });
 }
 function showSuccess(docCount){
   const email = esc(val("email"));

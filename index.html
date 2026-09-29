@@ -121,6 +121,18 @@
     .draft-bar span { flex: 1 1 220px; }
     .draft-bar .btn { flex: 0 0 auto; padding: 8px 12px; font-size: .88rem; }
     .success p + p { margin-top: 10px; }
+    .receipt { display: none; margin: 18px auto 0; max-width: 520px; text-align: right; }
+    .receipt ul { list-style: none; }
+    .receipt li {
+      display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; font-size: .9rem;
+    }
+    .receipt li b { white-space: nowrap; }
+    .rc-ok b { color: var(--ok); }
+    .rc-error b, .rc-missing b { color: var(--primary-dark); }
+    .rc-wait b, .rc-processing b { color: var(--muted); }
+    .receipt-help { display: none; margin-top: 10px; background: #fff5f5; padding: 10px 12px; border-radius: 8px; }
+    .receipt-help .btn { display: block; margin-top: 8px; width: 100%; }
     .excel-box {
       border: 1px dashed #ccd3db; border-radius: 10px; padding: 14px; margin-bottom: 16px; background: #fff;
     }
@@ -327,6 +339,10 @@
         <h2>ההזמנה נשלחה בהצלחה!</h2>
         <p>תודה. נציג מטעם קשת יזמות עסקית / סונול יבדוק את ההזמנה ויצור קשר בהקדם.</p>
         <p id="successDocs"></p>
+        <div class="receipt" id="receipt">
+          <ul id="receiptList"></ul>
+          <p class="receipt-help" id="receiptHelp"></p>
+        </div>
       </div>
     </div>
   </div>
