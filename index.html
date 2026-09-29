@@ -24,7 +24,8 @@
       min-height: 100vh;
       padding: 24px 16px 48px;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 760px; margin: 0 auto; transition: max-width .2s; }
+    body.wide .wrap { max-width: 1240px; }
     .brand {
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; margin-bottom: 16px;
@@ -114,6 +115,25 @@
     .error { color: var(--primary); font-size: .85rem; margin-top: 6px; display: none; }
     .gate { margin-bottom: 16px; }
     .muted { color: var(--muted); font-size: .9rem; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .vtable { border-collapse: collapse; width: 100%; min-width: 1180px; font-size: .88rem; }
+    .vtable-narrow { min-width: 520px; }
+    .vtable th {
+      background: #eef1f5; font-weight: 700; font-size: .8rem; padding: 8px 6px;
+      text-align: right; white-space: nowrap; position: sticky; top: 0;
+    }
+    .vtable td { padding: 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+    .vtable tbody tr:nth-child(even) td { background: #fafbfc; }
+    .vtable input, .vtable select { padding: 7px 6px; font-size: .88rem; border-radius: 5px; min-width: 90px; }
+    .vtable select[name^="v_amtsei_"] { min-width: 150px; }
+    .vtable .col-num { width: 34px; text-align: center; color: var(--muted); font-weight: 700; }
+    .vtable .col-act { width: 40px; text-align: center; }
+    .vtable .btn-remove { padding: 4px 8px; }
+    .vtable-read { min-width: 640px; }
+    .vtable-read td { padding: 6px; }
+    .table-foot { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+    .summary-h { font-size: 1rem; margin: 14px 0 6px; }
+    .doc-list { margin: 0 22px 12px 0; line-height: 1.8; }
     .draft-bar {
       display: none; flex-wrap: wrap; align-items: center; gap: 8px 10px;
       margin: 14px 20px 0; padding: 10px 12px; border-radius: 8px; background: #fff8e1; font-size: .9rem;
@@ -256,8 +276,31 @@
             </label>
             <div class="import-result" id="excelResult"></div>
           </div>
-          <div id="vehiclesList"></div>
-          <button type="button" class="btn btn-add" id="addVehicle">+ הוסף רכב / דלקן</button>
+          <div class="table-wrap">
+            <table class="vtable">
+              <thead><tr>
+                <th class="col-num">#</th>
+                <th>סוג אמצעי תדלוק <span class="req">*</span></th>
+                <th>מס׳ רכב <span class="req">*</span></th>
+                <th>סוג דלק <span class="req">*</span></th>
+                <th>סוג הרכב <span class="req">*</span></th>
+                <th>שטיפומט <span class="req">*</span></th>
+                <th>ליטרים ליום</th>
+                <th>ליטרים לחודש</th>
+                <th>טלפון נהג</th>
+                <th>שם נהג</th>
+                <th>דגם רכב</th>
+                <th>שנת יצור</th>
+                <th>קוד / מחלקה</th>
+                <th class="col-act"></th>
+              </tr></thead>
+              <tbody id="vehiclesList"></tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <button type="button" class="btn btn-add" id="addVehicle">+ הוסף שורה</button>
+            <span class="muted" id="vehicleCountNote"></span>
+          </div>
           <p class="muted" style="margin-top:8px">עד 10 רכבים בטופס. בהזמנה גדולה יותר, או עם כמה סוגי אמצעי תדלוק, ההזמנה תפוצל אוטומטית לכמה טפסים, וכל אחד יישלח לחתימה בנפרד.</p>
         </section>
 
@@ -299,8 +342,21 @@
         <section class="panel" data-panel="shtifo">
           <h2 class="section-title">עדכון שטיפומט לרכב</h2>
           <p class="muted" style="margin-bottom:14px">ללקוח קיים עם הסכם דלקן. ממלאים את הרכבים לצירוף להסדר הרחיצה. לחתימה יישלח קובץ אחד: טופס שטיפומט + הסכם מאי 2022, עם שתי חתימות לקוח.</p>
-          <div id="shtifoList"></div>
-          <button type="button" class="btn btn-add" id="addShtifo">+ הוסף רכב לשטיפומט</button>
+          <div class="table-wrap">
+            <table class="vtable vtable-narrow">
+              <thead><tr>
+                <th class="col-num">#</th>
+                <th>מס׳ רכב <span class="req">*</span></th>
+                <th>סוג הרכב <span class="req">*</span></th>
+                <th>כמות שטיפות בחודש <span class="req">*</span></th>
+                <th class="col-act"></th>
+              </tr></thead>
+              <tbody id="shtifoList"></tbody>
+            </table>
+          </div>
+          <div class="table-foot">
+            <button type="button" class="btn btn-add" id="addShtifo">+ הוסף שורה</button>
+          </div>
           <p class="muted" style="margin-top:8px">כל הרכבים ייכנסו לטופס שטיפומט אחד. מחיר שטיפה לפי סוג הרכב בהסכם (לא כולל מע״מ): פרטי 39 ₪ · מסחרי 45 ₪ · מסחרי גדול 69 ₪ · משאית 83 ₪ · רכב משא 128 ₪.</p>
         </section>
 

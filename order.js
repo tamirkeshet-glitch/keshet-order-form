@@ -105,6 +105,7 @@ function renderSteps(){
   document.querySelectorAll(".panel").forEach(p => {
     p.classList.toggle("active", p.dataset.panel === currentPanel());
   });
+  document.body.classList.toggle("wide", ["vehicle","shtifo","summary"].includes(currentPanel()));
   $("#prevBtn").style.visibility = step===0 ? "hidden" : "visible";
   $("#nextBtn").textContent = currentPanel()==="summary" ? "שליחת הזמנה" : "המשך";
 }
@@ -128,31 +129,29 @@ function setField(name, value){
   const el = document.querySelector(`[name="${name}"]`);
   if (el && value !== undefined && value !== null) el.value = value;
 }
+// כל רכב הוא שורה בטבלה: כל עמודה מכילה אותו סוג ערך, וקל לראות במבט
+// אחד מה מולא (בקשת תמיר 29/09/2026). שמות השדות לא השתנו (v_*_i),
+// כך שאיסוף, הסרה, טיוטה ושליחה עובדים כמו קודם.
 function addVehicle(preset){
   if (vehicleCount.n >= MAX_VEHICLES) return;
   const i = vehicleCount.n++;
-  const wrap = document.createElement("div");
-  wrap.className = "card-block";
+  const wrap = document.createElement("tr");
   wrap.dataset.v = i;
   wrap.innerHTML = `
-    <div class="card-head">
-      <h3>רכב / דלקן ${i+1}</h3>
-      <button type="button" class="btn-remove" data-remove="vehicle" data-i="${i}">הסר</button>
-    </div>
-    <div class="grid">
-      <div>${label("סוג אמצעי תדלוק", true)}${sel("v_amtsei_"+i, AMTSEI, true)}</div>
-      <div>${label("מס׳ רכב", true)}<input type="text" name="v_plate_${i}"></div>
-      <div>${label("מס׳ הטלפון של הנהג")}<input type="tel" name="v_phone_${i}"></div>
-      <div>${label("סוג דלק", true)}${sel("v_fuel_"+i, FUEL, true)}</div>
-      <div>${label("סוג הרכב", true)}${sel("v_type_"+i, VTYPES, true)}</div>
-      <div>${label("הגבלה בליטרים ליום")}<input type="text" name="v_day_${i}"></div>
-      <div>${label("הגבלה בליטרים לחודש")}<input type="text" name="v_month_${i}"></div>
-      <div>${label("דגם רכב")}<input type="text" name="v_model_${i}"></div>
-      <div>${label("שנת יצור")}<input type="text" name="v_year_${i}"></div>
-      <div>${label("שם נהג")}<input type="text" name="v_driver_${i}"></div>
-      <div>${label("קוד / שם מחלקה")}<input type="text" name="v_dept_${i}"></div>
-      <div class="span-2">${label("שטיפומט", true)}${shtifoSel("v_shtifo_"+i)}</div>
-    </div>`;
+    <td class="col-num">${i+1}</td>
+    <td>${sel("v_amtsei_"+i, AMTSEI, true)}</td>
+    <td><input type="text" name="v_plate_${i}"></td>
+    <td>${sel("v_fuel_"+i, FUEL, true)}</td>
+    <td>${sel("v_type_"+i, VTYPES, true)}</td>
+    <td>${shtifoSel("v_shtifo_"+i)}</td>
+    <td><input type="text" inputmode="numeric" name="v_day_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="v_month_${i}"></td>
+    <td><input type="tel" name="v_phone_${i}"></td>
+    <td><input type="text" name="v_driver_${i}"></td>
+    <td><input type="text" name="v_model_${i}"></td>
+    <td><input type="text" inputmode="numeric" name="v_year_${i}"></td>
+    <td><input type="text" name="v_dept_${i}"></td>
+    <td class="col-act"><button type="button" class="btn-remove" data-remove="vehicle" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#vehiclesList").appendChild(wrap);
   if (preset) {
     setField("v_amtsei_"+i, preset.amtsei);
@@ -169,23 +168,19 @@ function addVehicle(preset){
     setField("v_shtifo_"+i, preset.shtifo);
   }
   $("#addVehicle").style.display = vehicleCount.n >= MAX_VEHICLES ? "none" : "inline-block";
+  $("#vehicleCountNote").textContent = vehicleCount.n ? `${vehicleCount.n} רכבים בטבלה` : "";
 }
 function label(t, req){ return `<label>${t}${req?' <span class="req">*</span>':''}</label>`; }
 function addShtifoVehicle(preset){
   if (shtifoCount.n >= MAX_SHTIFO) return;
   const i = shtifoCount.n++;
-  const wrap = document.createElement("div");
-  wrap.className = "card-block";
+  const wrap = document.createElement("tr");
   wrap.innerHTML = `
-    <div class="card-head">
-      <h3>רכב לשטיפומט ${i+1}</h3>
-      <button type="button" class="btn-remove" data-remove="shtifo" data-i="${i}">הסר</button>
-    </div>
-    <div class="grid">
-      <div>${label("מס׳ רכב", true)}<input type="text" name="s_plate_${i}"></div>
-      <div>${label("סוג הרכב", true)}${sel("s_type_"+i, SHTIFO_VTYPES, true)}</div>
-      <div class="span-2">${label("כמות שטיפות בחודש", true)}${shtifoSel("s_qty_"+i, false)}</div>
-    </div>`;
+    <td class="col-num">${i+1}</td>
+    <td><input type="text" name="s_plate_${i}"></td>
+    <td>${sel("s_type_"+i, SHTIFO_VTYPES, true)}</td>
+    <td>${shtifoSel("s_qty_"+i, false)}</td>
+    <td class="col-act"><button type="button" class="btn-remove" data-remove="shtifo" data-i="${i}" title="הסרת השורה">✕</button></td>`;
   $("#shtifoList").appendChild(wrap);
   if (preset) {
     setField("s_plate_"+i, preset.plate);
@@ -328,25 +323,26 @@ function esc(t){
   return String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function buildSummary(){
-  const lines = [
+  const jobs = buildJobs();
+  const customer = [
     `<b>${esc(val("company"))}</b> · ${esc(val("hp"))}`,
     esc(val("address")),
     `${esc(val("phone"))} · ${esc(val("email"))}`,
-    `מורשה חתימה: ${esc(val("sig1_name"))}`,
-    `דלקן/רכב: ${wants("vehicle") ? vehicleCount.n+" פריטים" : "לא"}`,
-    `כרטיס נהג: ${wants("driver") ? driverCount.n+" כרטיסים" : "לא"}`,
-    `מאסטר: ${wants("master") ? val("master_qty")+" כרטיסים" : "לא"}`,
-    `סונוקאש: ${wants("sono") ? (radio("sono_fuel") || "כן") : "לא"}`,
-    `שטיפומט: ${wants("shtifo") ? shtifoCount.n+" רכבים" : "לא"}`
-  ];
-  if (wants("vehicle")) {
-    const batches = vehicleBatches();
-    if (batches.length > 1) {
-      lines.push("", `<b>הזמנת הרכבים תישלח כ-${batches.length} טפסים נפרדים, כל אחד לחתימה בנפרד:</b>`);
-      batches.forEach((b, k) => lines.push(`טופס ${k+1}: ${esc(b[0].amtsei)} · ${b.length} רכבים`));
-    }
+    `מורשה חתימה: ${esc(val("sig1_name"))}`
+  ].join("<br>");
+  const title = jobs.length > 1
+    ? `ההזמנה תישלח כ-${jobs.length} טפסים נפרדים, כל אחד לחתימה בנפרד:`
+    : "ההזמנה תישלח כטופס אחד לחתימה:";
+  const list = jobs.map((j, k) => `<li><b>טופס ${k+1}:</b> ${jobSummaryLabel(j)}</li>`).join("");
+  let vehicles = "";
+  if (wants("vehicle") && vehicleCount.n) {
+    const rows = collectVehicles().map((v, k) =>
+      `<tr><td>${k+1}</td><td>${esc(v.amtsei)}</td><td>${esc(v.plate)}</td><td>${esc(v.fuel)}</td>` +
+      `<td>${esc(v.type)}</td><td>${esc(v.shtifo)}</td><td>${esc(v.month)}</td></tr>`).join("");
+    vehicles = `<div class="table-wrap"><table class="vtable vtable-read"><thead><tr><th>#</th><th>אמצעי</th><th>מס׳ רכב</th>` +
+      `<th>דלק</th><th>סוג רכב</th><th>שטיפומט</th><th>ליטר לחודש</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
-  $("#summary").innerHTML = lines.join("<br>");
+  $("#summary").innerHTML = `<div>${customer}</div><h3 class="summary-h">${title}</h3><ol class="doc-list">${list}</ol>${vehicles}`;
 }
 function addHidden(form, name, value){
   if (value===undefined || value===null || String(value)==="") return;
@@ -521,14 +517,28 @@ function submitJob(job, n){
   document.body.appendChild(form);
   form.submit();
 }
-function submitToGoogle(){
-  const types = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
-  if (!types.length || submitted) return;
+// כל job = שורה אחת בטופס גוגל = מסמך אחד לחתימה. אותה רשימה משמשת
+// גם את מסך הסיכום, כדי שהלקוח יראה בדיוק מה יישלח.
+function buildJobs(){
   const jobs = [];
-  types.forEach(t => {
+  selectedTypes().filter(t => PRODUCT_PANELS.includes(t)).forEach(t => {
     if (t === "vehicle") vehicleBatches().forEach(b => jobs.push({type: t, vehicles: b}));
     else jobs.push({type: t});
   });
+  return jobs;
+}
+function jobSummaryLabel(job){
+  if (job.type === "vehicle") return `${esc(job.vehicles[0].amtsei)} · ${job.vehicles.length} רכבים`;
+  if (job.type === "driver") return `כרטיס נהג · ${driverCount.n} כרטיסים`;
+  if (job.type === "master") return `כרטיס מאסטר · ${esc(val("master_qty"))} כרטיסים · ${esc(val("master_fuel"))}`;
+  if (job.type === "sono") return `סונוקאש · ${esc(radio("sono_fuel"))}`;
+  if (job.type === "shtifo") return `שטיפומט · ${shtifoCount.n} רכבים`;
+  return "";
+}
+function submitToGoogle(){
+  if (submitted) return;
+  const jobs = buildJobs();
+  if (!jobs.length) return;
   submitted = true;
   $("#nextBtn").disabled = true;
   $("#nextBtn").textContent = "שולח הזמנה...";
