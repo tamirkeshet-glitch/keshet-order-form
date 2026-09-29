@@ -140,6 +140,7 @@
     .vtable .btn-remove { padding: 4px 8px; }
     .vtable-read { min-width: 640px; }
     .vtable-read td { padding: 6px; }
+    .vtable td.urea-off input { visibility: hidden; }
     /* טלפון: כל שורה בטבלה הופכת לכרטיס, שדה בשורה משלו עם התווית מהכותרת
        (data-label, נקבע ב-labelTableRows ב-order.js). בלי גלילה הצידה. */
     @media (max-width: 760px) {
@@ -156,6 +157,7 @@
         border: none; padding: 5px 0;
         display: grid; grid-template-columns: 38% 1fr; align-items: center; gap: 8px;
       }
+      .vtable td.urea-off { display: none; }
       .vtable td::before { content: attr(data-label); font-weight: 600; font-size: .85rem; color: var(--ink); }
       .vtable td:not([data-label])::before, .vtable td[data-label=""]::before { content: none; }
       .vtable input, .vtable select, .vtable select[name^="v_amtsei_"] { min-width: 0; width: 100%; font-size: 16px; padding: 10px; }
@@ -408,6 +410,14 @@
         <section class="panel" data-panel="shtifo">
           <h2 class="section-title">עדכון שטיפומט לרכב</h2>
           <p class="muted" style="margin-bottom:14px">ללקוח קיים עם הסכם דלקן. ממלאים את הרכבים לצירוף להסדר הרחיצה. לחתימה יישלח קובץ אחד: טופס שטיפומט + הסכם מאי 2022, עם שתי חתימות לקוח.</p>
+          <div class="excel-box">
+            <strong>הרבה רכבים? אפשר להעלות קובץ אקסל במקום להקליד</strong>
+            <p class="muted">1. מורידים את <a href="order-template-shtifomat.xlsx" download>תבנית שטיפומט (Excel)</a> &nbsp;2. ממלאים שורה לכל רכב &nbsp;3. מעלים את הקובץ כאן. הרכבים ייכנסו לטופס, ואפשר לתקן אותם לפני השליחה.</p>
+            <label class="btn btn-add excel-upload">העלאת קובץ אקסל
+              <input type="file" id="shtifoExcelFile" accept=".xlsx,.xls" hidden>
+            </label>
+            <div class="import-result" id="shtifoExcelResult"></div>
+          </div>
           <div class="table-wrap">
             <table class="vtable vtable-narrow">
               <thead><tr>
