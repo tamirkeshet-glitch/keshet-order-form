@@ -1,9 +1,10 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
       "has": [{ "type": "host", "value": "card-request.keshet-g.com" }],
-      "destination": "/card-request.html"
+      "destination": "/card-request.html",
+      "permanent": false
     }
   ]
 }
