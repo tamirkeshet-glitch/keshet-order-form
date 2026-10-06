@@ -4,19 +4,19 @@
 const JOIN_MODE = location.hostname.startsWith("join.") || new URLSearchParams(location.search).has("join");
 // טופס גוגל של ההצטרפות: השורה שלו יוצרת את ההסכם ואת טפסי ההזמנה, וכך
 // הם יוצאים לחתימה יחד (app/join_agreement/signing.py: order_forms_for).
-const JOIN_GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSep6G4wSJTiqPhhO_mb1MbIaSRab6pRVWSM6cc5ibZihGDg-w/formResponse";
-// מזהי השדות נלקחו מטופס ההצטרפות החי (keshet-join-form, 06/10/2026).
+// טופס ההצטרפות v2 (06/10/2026): עמוד אחד, נוצר ע"י createJoinFormV2 ב-dalkan-API
+// (join_form_v2_setup.gs), לשונית "לקוחות חדשים v2" בגיליון ההצטרפות. הטופס הישן
+// (18 עמודים) זרק בשקט תשובה שנפלה בעמוד שהלקוח "לא עבר בו".
+const JOIN_GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLScX1oSLFDHGJ1njC_AGSazKJwnZn6wsfLHyk3GzmHMmqq3rIA/formResponse";
+// מזהי השדות נלקחו מהטופס הציבורי (viewform), לא מ-getId של הפריט - הם שונים.
 const JOIN_E = {
-  company: "674780775", hp: "1464393871", address: "769353995", email: "1365412492",
-  phone: "1141649068", mobile: "72281329", fax: "1461622088",
-  sig1_name: "75492597", sig1_id: "961577127", sig1_addr: "1273925507",
-  sig2_name: "1727326492", sig2_id: "1012050798", sig2_addr: "386000391",
-  want_vehicle: "1880335478", want_driver: "2128856327", want_master: "1464371636", want_sono: "1692488098"
+  company: "2048850359", hp: "1758936002", address: "335473641", email: "1356909215",
+  phone: "852708867", mobile: "14248146", fax: "647335918",
+  sig1_name: "1901027387", sig1_id: "10174529", sig1_addr: "589257318",
+  sig2_name: "720689581", sig2_id: "562616025", sig2_addr: "1505718166"
 };
-// שאלת «פרטי הזמנה» בטופס ההצטרפות (נוספה 06/10/2026): כל ההזמנה כ-JSON בשדה אחד, כדי שלא
-// להוסיף עשרות שאלות שמזיזות עמודות בגיליון. ריק = השאלה עוד לא נוספה,
-// ואז מצב הצטרפות חוסם שליחה במקום לשלוח הזמנה שתאבד.
-const JOIN_ORDER_ENTRY = "119435934";
+// «פרטי הזמנה»: כל ההזמנה כ-JSON בשדה אחד. ריק = חוסם שליחה במקום לשלוח הזמנה שתאבד.
+const JOIN_ORDER_ENTRY = "353203768";
 const PANEL_LABELS = {
   customer: "לקוח",
   signers: "מורשי חתימה",
@@ -656,8 +656,6 @@ function submitJoin(){
   form.style.display = "none";
   ["company","hp","address","email","phone","mobile","fax","sig1_name","sig1_id","sig1_addr","sig2_name","sig2_id","sig2_addr"]
     .forEach(k => addEntry(form, JOIN_E[k], val(k)));
-  // שאלות השער של הטופס הישן: עדיין חובה בטופס גוגל, ולכן נגזרות מההזמנה
-  ["vehicle","driver","master","sono"].forEach(t => addEntry(form, JOIN_E["want_"+t], wants(t) ? "כן" : "לא"));
   addEntry(form, JOIN_ORDER_ENTRY, joinOrderPayload());
   const frame = document.createElement("iframe");
   frame.name = "gform_join_target";
