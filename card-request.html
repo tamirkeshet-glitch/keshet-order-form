@@ -92,8 +92,12 @@
               <textarea name="numbers" required placeholder="12345678&#10;87654321"></textarea>
             </div>
             <div class="span-2">
-              <label>סיבה / הערות</label>
-              <input type="text" name="reason" maxlength="600" placeholder="למשל: הכרטיס אבד / הרכב נמכר / חידוש הפעילות">
+              <label>סיבה <span class="req">*</span></label>
+              <select name="reason" required></select>
+            </div>
+            <div class="span-2">
+              <label>הערות <span class="hint">(לא חובה)</span></label>
+              <input type="text" name="notes" maxlength="600">
             </div>
             <div class="span-2" id="selfCodeRow" hidden>
               <label>האם לשלוח קוד לתדלוק עצמי?</label>
@@ -131,6 +135,11 @@
     // ריקה = הטופס עוד לא הופעל: הוא מוצג אבל השליחה חסומה.
     const ENDPOINT = "";
 
+    // רשימות הסיבות זהות לאלה שבאתר סונול (dalkan-API: app/scrapers/fueling_actions.py BLOCK_REASONS / UNBLOCK_REASONS) - לעדכן בשניהם
+    const REASONS = {
+      "חסימה": ["לפי בקשת לקוח", "רכב נגנב", "רכב נמכר ללא טבעת", "רכב נמכר עם הטבעת", "רכב הוחזר לליסינג", "רכב עבר תאונה", "רכב עבר תאונה דלקן הוחזר", "כרטיס מאסטר אבד", "כרטיס רכב אבד", "כרטיס נהג אבד", "כרטיס מאסטר נגנב", "כרטיס רכב נגנב", "כרטיס נהג נגנב", "עובד פוטר/עזב", "כרטיס רכב לא תקין", "כרטיס מסטר לא תקין", "טבעת נגנבה", "טבעת אבדה", "רכב הושבת"],
+      "פתיחה": ["רכב חזר לשימוש", "נחסם עקב טעות לקוח", "אחר"]
+    };
     const form = document.getElementById("reqForm");
     const err = document.getElementById("err");
     const send = document.getElementById("send");
@@ -139,6 +148,8 @@
     function syncAction() {
       document.getElementById("unblockNotice").hidden = !isUnblock();
       document.getElementById("selfCodeRow").hidden = !isUnblock();
+      const sel = form.reason;
+      sel.replaceChildren(new Option("בחרו סיבה...", ""), ...REASONS[form.action.value].map(r => new Option(r, r)));
     }
     form.querySelectorAll('input[name="action"]').forEach(r => r.addEventListener("change", syncAction));
     syncAction();
@@ -162,6 +173,7 @@
       if (!n) return fail("יש להזין לפחות מספר רכב / כרטיס אחד (4 ספרות ומעלה).");
       if (n > 30) return fail("ניתן לשלוח עד 30 מספרים בבקשה אחת.");
       if (!(v.customer_no || "").trim() && !(v.tax_id || "").trim()) return fail("יש להזין מס' לקוח סונול או ח.פ.");
+      if (!v.reason) return fail("יש לבחור סיבה.");
       if (!(v.requester || "").trim() || !(v.phone || "").trim()) return fail("יש למלא שם המבקש וטלפון.");
       if ((v.email || "").trim() && !/^\S+@\S+\.\S+$/.test(v.email.trim())) return fail("כתובת הדוא\"ל אינה תקינה.");
       send.disabled = true;
