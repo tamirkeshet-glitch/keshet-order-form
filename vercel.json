@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "card-request.keshet-g.com" }],
+      "destination": "/card-request.html"
+    }
+  ]
+}
