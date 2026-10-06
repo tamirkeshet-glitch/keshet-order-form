@@ -1,5 +1,25 @@
+// מצב הצטרפות: לקוח חדש ממלא פרטי חברה ומורשי חתימה, ומיד ממשיך להזמנה
+// באותו אשף (החלטת תמיר 06/10/2026: לקוח חדש חייב להזמין, וההזמנה נשלחת
+// יחד עם הסכם ההצטרפות). נדלק בכתובת join.keshet-g.com, או עם ?join לבדיקה ב-BETA.
+const JOIN_MODE = location.hostname.startsWith("join.") || new URLSearchParams(location.search).has("join");
+// טופס גוגל של ההצטרפות: השורה שלו יוצרת את ההסכם ואת טפסי ההזמנה, וכך
+// הם יוצאים לחתימה יחד (app/join_agreement/signing.py: order_forms_for).
+const JOIN_GFORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSep6G4wSJTiqPhhO_mb1MbIaSRab6pRVWSM6cc5ibZihGDg-w/formResponse";
+// מזהי השדות נלקחו מטופס ההצטרפות החי (keshet-join-form, 06/10/2026).
+const JOIN_E = {
+  company: "674780775", hp: "1464393871", address: "769353995", email: "1365412492",
+  phone: "1141649068", mobile: "72281329", fax: "1461622088",
+  sig1_name: "75492597", sig1_id: "961577127", sig1_addr: "1273925507",
+  sig2_name: "1727326492", sig2_id: "1012050798", sig2_addr: "386000391",
+  want_vehicle: "1880335478", want_driver: "2128856327", want_master: "1464371636", want_sono: "1692488098"
+};
+// שאלת «פרטי הזמנה» בטופס ההצטרפות (נוספה 06/10/2026): כל ההזמנה כ-JSON בשדה אחד, כדי שלא
+// להוסיף עשרות שאלות שמזיזות עמודות בגיליון. ריק = השאלה עוד לא נוספה,
+// ואז מצב הצטרפות חוסם שליחה במקום לשלוח הזמנה שתאבד.
+const JOIN_ORDER_ENTRY = "119435934";
 const PANEL_LABELS = {
   customer: "לקוח",
+  signers: "מורשי חתימה",
   choose: "מה מזמינים",
   vehicle: "דלקן",
   driver: "נהג",
@@ -69,7 +89,8 @@ const E = {
   sono_fuel: "1292972257",
   sono_denoms: ["870630053","20073982","2010242330","2143055710","1862823812","394350578"]
 };
-let path = ["customer", "choose"];
+const BASE_PATH = JOIN_MODE ? ["customer", "signers", "choose"] : ["customer", "choose"];
+let path = [...BASE_PATH];
 let step = 0;
 let submitted = false;
 const vehicleCount = { n: 0 };
@@ -98,7 +119,7 @@ function wants(type){ return selectedTypes().includes(type); }
 function currentPanel(){ return path[step]; }
 function rebuildPath(){
   const chosen = selectedTypes().filter(t => PRODUCT_PANELS.includes(t));
-  path = ["customer", "choose", ...chosen, "summary"];
+  path = [...BASE_PATH, ...chosen, "summary"];
   if (step >= path.length) step = path.length - 1;
 }
 function renderSteps(){
@@ -299,6 +320,9 @@ function validate(){
   const panel = currentPanel();
   if (panel==="customer") {
     return need(val("company") && val("hp") && val("address") && val("email") && val("phone") && val("sig1_name"));
+  }
+  if (panel==="signers") {
+    return need(val("sig1_id") && val("sig1_addr"), "יש למלא ת.ז וכתובת של מורשה החתימה הראשון.");
   }
   if (panel==="choose") {
     return need(selectedTypes().length > 0, "יש לבחור לפחות סוג הזמנה אחד.");
@@ -595,7 +619,67 @@ function jobSummaryLabel(job){
   if (job.type === "shtifo") return `שטיפומט · ${shtifoCount.n} רכבים`;
   return "";
 }
+// ההזמנה כ-JSON לשאלת «פרטי הזמנה» בטופס ההצטרפות. אותם jobs כמו בשליחה
+// הרגילה (פיצול לפי אמצעי תדלוק, נתחים של 10, גולדיזל+אוריאה, ברירות מחדל),
+// כדי שהסקריפט בגיליון ייצר מהם בדיוק את אותם טפסי הזמנה.
+function joinOrderPayload(){
+  const jobs = buildJobs().map(job => {
+    const out = {type: job.type, category: categoryValue(job.type)};
+    if (job.type === "vehicle") out.vehicles = job.vehicles;
+    if (job.type === "driver") out.drivers = collectDrivers().map(d => ({
+      ...d, day: withDefault(d.day, DEFAULT_DAY_L), month: withDefault(d.month, DEFAULT_MONTH_L)}));
+    if (job.type === "master") out.master = {qty: val("master_qty"), fuel: val("master_fuel"),
+      day: withDefault(val("master_day"), DEFAULT_DAY_L), month: withDefault(val("master_month"), DEFAULT_MONTH_L)};
+    if (job.type === "sono") out.sono = {fuel: radio("sono_fuel"),
+      denoms: Object.fromEntries(["100","150","200","250","500","1000"].map(d => [d, val("sono_"+d)]))};
+    if (job.type === "shtifo") out.shtifo = collectShtifo();
+    return out;
+  });
+  return JSON.stringify({v: 1, jobs});
+}
+// לקוח חדש: שליחה אחת לטופס ההצטרפות, עם פרטי החברה, המורשים וההזמנה.
+// אין כאן בדיקת קבלה (api/receipt קורא את גיליון ההזמנות, לא את גיליון ההצטרפות).
+function submitJoin(){
+  if (submitted) return;
+  if (!JOIN_ORDER_ENTRY) {
+    const err = $("#formError");
+    err.textContent = "טופס ההצטרפות עדיין לא מוכן לקבלת הזמנות. ההזמנה לא נשלחה. נא לפנות לקשת יזמות עסקית.";
+    err.style.display = "block";
+    return;
+  }
+  submitted = true;
+  $("#nextBtn").disabled = true;
+  $("#nextBtn").textContent = "שולח...";
+  const form = document.createElement("form");
+  form.action = JOIN_GFORM_ACTION;
+  form.method = "POST";
+  form.style.display = "none";
+  ["company","hp","address","email","phone","mobile","fax","sig1_name","sig1_id","sig1_addr","sig2_name","sig2_id","sig2_addr"]
+    .forEach(k => addEntry(form, JOIN_E[k], val(k)));
+  // שאלות השער של הטופס הישן: עדיין חובה בטופס גוגל, ולכן נגזרות מההזמנה
+  ["vehicle","driver","master","sono"].forEach(t => addEntry(form, JOIN_E["want_"+t], wants(t) ? "כן" : "לא"));
+  addEntry(form, JOIN_ORDER_ENTRY, joinOrderPayload());
+  const frame = document.createElement("iframe");
+  frame.name = "gform_join_target";
+  frame.style.display = "none";
+  document.body.appendChild(frame);
+  form.target = frame.name;
+  document.body.appendChild(form);
+  clearDraft();
+  form.submit();
+  setTimeout(showJoinSuccess, 900);
+}
+function showJoinSuccess(){
+  $("#successMessage").querySelector("h2").textContent = "בקשת ההצטרפות וההזמנה נשלחו";
+  $("#successDocs").innerHTML = `הסכם ההצטרפות וטופסי ההזמנה יישלחו יחד לחתימה אל <b>${esc(val("email"))}</b>, אחרי בדיקה של נציג קשת יזמות עסקית.`;
+  $("#receipt").style.display = "none";
+  $("#wizard").style.display = "none";
+  $("#steps").style.display = "none";
+  document.querySelector(".head").style.display = "none";
+  $("#successMessage").style.display = "block";
+}
 function submitToGoogle(){
+  if (JOIN_MODE) { submitJoin(); return; }
   if (submitted) return;
   const jobs = buildJobs();
   if (!jobs.length) return;
@@ -952,8 +1036,10 @@ document.querySelectorAll("table.vtable").forEach(table => {
 // נשמרת בדפדפן של הלקוח בלבד (localStorage), כדי שרענון או סגירה בטעות
 // לא ימחקו הזמנה ארוכה. נמחקת ברגע השליחה. הגישה עטופה ב-try כי בגלישה
 // פרטית או עם חסימת עוגיות localStorage זורק שגיאה.
-const DRAFT_KEY = "keshet-order-draft-v1";
+// טיוטת הצטרפות נפרדת מטיוטת הזמנה, כדי שלקוח קיים ולקוח חדש באותו דפדפן לא יתערבבו
+const DRAFT_KEY = JOIN_MODE ? "keshet-join-draft-v1" : "keshet-order-draft-v1";
 const DRAFT_FIELDS = ["company","hp","phone","address","email","sig1_name",
+  "mobile","fax","sig1_id","sig1_addr","sig2_name","sig2_id","sig2_addr",
   "master_qty","master_fuel","master_day","master_month",
   "sono_100","sono_150","sono_200","sono_250","sono_500","sono_1000"];
 let draftTimer = null;
@@ -1009,5 +1095,10 @@ function offerDraft(){
 $("#wizard").addEventListener("input", scheduleDraft);
 $("#wizard").addEventListener("change", scheduleDraft);
 $("#wizard").addEventListener("click", (ev) => { if (ev.target.closest("button")) scheduleDraft(); });
+if (JOIN_MODE) {
+  document.body.classList.add("join-mode");
+  document.title = "טופס הצטרפות והזמנה - קשת יזמות עסקית / סונול";
+  document.querySelector(".head h1").textContent = "טופס הצטרפות והזמנת אמצעי תדלוק";
+}
 renderSteps();
 offerDraft();

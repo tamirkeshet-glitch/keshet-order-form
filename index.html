@@ -238,6 +238,9 @@
       .btn { min-height: 48px; }
       .step-dot { font-size: .7rem; padding: 6px 9px; }
     }
+    /* מצב הצטרפות (לקוח חדש): שדות ושלבים שקיימים רק בו */
+    .join-only{display:none}
+    body.join-mode .join-only{display:block}
   </style>
 </head>
 <body>
@@ -283,6 +286,40 @@
             <div>
               <label>שם מורשה החתימה <span class="req">*</span></label>
               <input type="text" id="sig1_name" required>
+            </div>
+            <div class="join-only">
+              <label>טלפון סלולרי / איש קשר</label>
+              <input type="tel" id="mobile">
+            </div>
+            <div class="join-only">
+              <label>פקס</label>
+              <input type="tel" id="fax">
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="signers">
+          <h2 class="section-title">מורשי חתימה</h2>
+          <div class="grid">
+            <div>
+              <label>ת.ז מורשה 1 <span class="req">*</span></label>
+              <input type="text" id="sig1_id">
+            </div>
+            <div>
+              <label>כתובת מורשה 1 <span class="req">*</span></label>
+              <input type="text" id="sig1_addr">
+            </div>
+            <div>
+              <label>שם מורשה 2</label>
+              <input type="text" id="sig2_name">
+            </div>
+            <div>
+              <label>ת.ז מורשה 2</label>
+              <input type="text" id="sig2_id">
+            </div>
+            <div class="span-2">
+              <label>כתובת מורשה 2</label>
+              <input type="text" id="sig2_addr">
             </div>
           </div>
         </section>
