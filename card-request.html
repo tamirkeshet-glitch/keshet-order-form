@@ -53,7 +53,10 @@
     /* honeypot מוסתר במקום, לא בהזזה: left:-9999px בדף RTL הרחיב את הדף ל-10,000px ובנייד הטופס לא נראה */
     .hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     [hidden] { display: none !important; }
-    .num-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .num-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+    .num-row .num-field { display: block; margin: 0; font-weight: 400; }
+    .num-row .num-field span { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .num-row .or { padding-bottom: 12px; }
     .num-row.single { grid-template-columns: 1fr auto; }
     .num-row input { direction: ltr; text-align: center; letter-spacing: .5px; }
     .num-row .or { color: var(--muted); font-size: .85rem; }
@@ -227,7 +230,13 @@
       row.className = "num-row" + (fields.length === 1 ? " single" : "");
       fields.forEach((kind, i) => {
         if (i) { const or = document.createElement("span"); or.className = "or"; or.textContent = "או"; row.appendChild(or); }
-        row.appendChild(numInput(kind));
+        // כותרת מעל כל שדה (תמיר 06/10/2026), כדי שבכרטיס רכב יהיה ברור איזה שדה הוא מה
+        const box = document.createElement("label");
+        box.className = "num-field";
+        const cap = document.createElement("span");
+        cap.textContent = kind === "plate" ? "מס' רכב" : "מספר כרטיס";
+        box.append(cap, numInput(kind));
+        row.appendChild(box);
       });
       const rm = document.createElement("button");
       rm.type = "button"; rm.className = "rm"; rm.textContent = "✕"; rm.setAttribute("aria-label", "הסרה");
