@@ -50,8 +50,16 @@
     .success { display: none; text-align: center; padding: 56px 28px; }
     .success h2 { color: var(--ok); margin-bottom: 10px; }
     .success p { color: var(--muted); line-height: 1.7; }
-    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    /* honeypot מוסתר במקום, לא בהזזה: left:-9999px בדף RTL הרחיב את הדף ל-10,000px ובנייד הטופס לא נראה */
+    .hp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     [hidden] { display: none !important; }
+    .num-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .num-row.single { grid-template-columns: 1fr auto; }
+    .num-row input { direction: ltr; text-align: center; letter-spacing: .5px; }
+    .num-row .or { color: var(--muted); font-size: .85rem; }
+    .num-row .rm { border: 1px solid #ccd3db; background: #fff; border-radius: 7px; width: 40px; height: 44px; cursor: pointer; font-size: 1rem; }
+    .add-row { margin-top: 4px; border: 1px dashed #ccd3db; background: #fff; border-radius: 7px; padding: 9px 14px; cursor: pointer; font-family: inherit; font-size: .92rem; }
+    @media (max-width: 640px) { .num-row { grid-template-columns: 1fr auto; padding-bottom: 10px; border-bottom: 1px dashed var(--line); } .num-row .or { grid-column: 1 / -1; text-align: center; } }
   </style>
 </head>
 <body>
@@ -81,15 +89,17 @@
           <div class="grid">
             <div class="span-2">
               <label>סוג אמצעי התדלוק <span class="req">*</span></label>
-              <select name="means" required>
-                <option>רכב / דלקן</option>
-                <option>כרטיס מאסטר</option>
-                <option>סונוקאש</option>
-              </select>
+              <div class="choice-row" role="radiogroup" aria-label="סוג אמצעי התדלוק">
+                <label class="choice"><input type="radio" name="means" value="דלקן" checked> דלקן</label>
+                <label class="choice"><input type="radio" name="means" value="כרטיס רכב"> כרטיס רכב</label>
+                <label class="choice"><input type="radio" name="means" value="כרטיס מאסטר / נהג"> כרטיס מאסטר / נהג</label>
+                <label class="choice"><input type="radio" name="means" value="סונוקאש"> סונוקאש</label>
+              </div>
             </div>
             <div class="span-2">
-              <label>מספרי רכב / כרטיס <span class="req">*</span> <span class="hint">(מספר אחד בכל שורה, עד 30)</span></label>
-              <textarea name="numbers" required placeholder="12345678&#10;87654321"></textarea>
+              <label>מספרי <span id="numbersWhat">רכב</span> <span class="req">*</span> <span class="hint" id="numbersHint"></span></label>
+              <div id="numRows"></div>
+              <button type="button" class="add-row" id="addRow">+ הוספת אמצעי נוסף</button>
             </div>
             <div class="span-2">
               <label>סיבה <span class="req">*</span></label>
@@ -161,17 +171,106 @@
 
     function fail(msg) { err.textContent = msg; err.style.display = "block"; send.disabled = false; }
 
-    function countNumbers(text) {
-      return text.split(/[\n,;\s]+/).filter(t => t.replace(/\D/g, "").length >= 4).length;
+    // ---- מספרי אמצעי התדלוק, לפי סוג (תמיר 06/10/2026) ----
+    // על המסך המספר מוצג בקבוצות, אבל נשלח בלי רווחים: השרת (app/fuel_requests/watcher.py,
+    // parse_numbers) ו-Apps Script מפרקים לפי רווחים, וכרטיס "1234 5678 9012" היה הופך לשלושה מספרים.
+    const MAX_ROWS = 30;
+    const digits = s => (s || "").replace(/\D/g, "");
+    const KINDS = {
+      plate: { ph: "1234567", max: 8, fmt: d => d, ok: d => d.length >= 5 && d.length <= 8,
+               err: "מס' רכב: 5 עד 8 ספרות", send: d => d },
+      card:  { ph: "1234 5678 9012", max: 12, fmt: d => d.replace(/(\d{4})(?=\d)/g, "$1 "), ok: d => d.length === 12,
+               err: "מס' כרטיס: 12 ספרות", send: d => d },
+      // סונוקאש: 3 קבוצות של 4 וספרת ביקורת אחת אחרונה (תמיד לבד), ואולי 2-4 ספרות לפני
+      sono:  { ph: "1234 5678 9012-3", max: 17,
+               fmt: d => {
+                 if (d.length <= 12) return d.replace(/(\d{4})(?=\d)/g, "$1 ");
+                 const body = d.slice(-13, -1), check = d.slice(-1), pre = d.slice(0, -13);
+                 return (pre ? pre + " " : "") + body.replace(/(\d{4})(?=\d)/g, "$1 ") + "-" + check;
+               },
+               ok: d => d.length === 13 || (d.length >= 15 && d.length <= 17),
+               err: "מס' סונוקאש: 12 ספרות + ספרת ביקורת, ואופציונלית 2-4 ספרות בהתחלה",
+               send: d => d.slice(0, -1) + "-" + d.slice(-1) }
+    };
+    // לכל סוג אמצעי: אילו שדות מוצגים בכל שורה. בכרטיס רכב ממלאים רק אחד מהשניים.
+    const MEANS_FIELDS = {
+      "דלקן": ["plate"], "כרטיס רכב": ["plate", "card"], "כרטיס מאסטר / נהג": ["card"], "סונוקאש": ["sono"]
+    };
+    const MEANS_TEXT = {
+      "דלקן": ["רכב", "5 עד 8 ספרות"],
+      "כרטיס רכב": ["רכב או כרטיס", "בכל שורה: מס' רכב או מס' כרטיס (12 ספרות), לא את שניהם"],
+      "כרטיס מאסטר / נהג": ["כרטיס", "12 ספרות"],
+      "סונוקאש": ["כרטיס סונוקאש", "12 ספרות וספרת ביקורת; ספרות קידומת - רשות"]
+    };
+    const numRows = document.getElementById("numRows");
+    const means = () => form.querySelector('input[name="means"]:checked').value;
+
+    function numInput(kind) {
+      const k = KINDS[kind];
+      const el = document.createElement("input");
+      el.type = "text"; el.inputMode = "numeric"; el.autocomplete = "off";
+      el.dataset.kind = kind; el.placeholder = k.ph;
+      el.setAttribute("aria-label", kind === "plate" ? "מס' רכב" : "מס' כרטיס");
+      el.addEventListener("input", () => {
+        const d = digits(el.value).slice(0, k.max);
+        el.value = k.fmt(d);
+        // בכרטיס רכב: מילוי שדה אחד משבית את השני בשורה
+        const row = el.closest(".num-row");
+        row.querySelectorAll("input").forEach(o => { if (o !== el) o.disabled = !!d; });
+      });
+      return el;
+    }
+    function addRow() {
+      if (numRows.children.length >= MAX_ROWS) return;
+      const fields = MEANS_FIELDS[means()];
+      const row = document.createElement("div");
+      row.className = "num-row" + (fields.length === 1 ? " single" : "");
+      fields.forEach((kind, i) => {
+        if (i) { const or = document.createElement("span"); or.className = "or"; or.textContent = "או"; row.appendChild(or); }
+        row.appendChild(numInput(kind));
+      });
+      const rm = document.createElement("button");
+      rm.type = "button"; rm.className = "rm"; rm.textContent = "✕"; rm.setAttribute("aria-label", "הסרה");
+      rm.addEventListener("click", () => { row.remove(); if (!numRows.children.length) addRow(); syncAdd(); });
+      row.appendChild(rm);
+      numRows.appendChild(row);
+      syncAdd();
+    }
+    function syncAdd() { document.getElementById("addRow").hidden = numRows.children.length >= MAX_ROWS; }
+    function syncMeans() {
+      const [what, hint] = MEANS_TEXT[means()];
+      document.getElementById("numbersWhat").textContent = what;
+      document.getElementById("numbersHint").textContent = "(" + hint + ", עד " + MAX_ROWS + ")";
+      numRows.replaceChildren();
+      addRow();
+    }
+    form.querySelectorAll('input[name="means"]').forEach(r => r.addEventListener("change", syncMeans));
+    document.getElementById("addRow").addEventListener("click", addRow);
+    syncMeans();
+
+    // מחזיר את המספרים לשליחה, או מחרוזת שגיאה. שורה ריקה מדולגת.
+    function collectNumbers() {
+      const out = [];
+      for (const [i, row] of [...numRows.children].entries()) {
+        const filled = [...row.querySelectorAll("input")].filter(el => digits(el.value));
+        if (!filled.length) continue;
+        if (filled.length > 1) return `שורה ${i + 1}: יש למלא מס' רכב או מס' כרטיס, לא את שניהם.`;
+        const el = filled[0], k = KINDS[el.dataset.kind], d = digits(el.value);
+        if (!k.ok(d)) return `שורה ${i + 1}: ${k.err}.`;
+        const value = k.send(d);
+        if (!out.includes(value)) out.push(value);
+      }
+      return out.length ? out : "יש להזין לפחות מספר רכב / כרטיס אחד.";
     }
 
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       err.style.display = "none";
       const v = Object.fromEntries(new FormData(form).entries());
-      const n = countNumbers(v.numbers || "");
-      if (!n) return fail("יש להזין לפחות מספר רכב / כרטיס אחד (4 ספרות ומעלה).");
-      if (n > 30) return fail("ניתן לשלוח עד 30 מספרים בבקשה אחת.");
+      const nums = collectNumbers();
+      if (typeof nums === "string") return fail(nums);
+      // שורה לכל מספר, בלי רווחים בתוך מספר (ר' parse_numbers בשרת)
+      v.numbers = nums.join("\n");
       if (!(v.customer_no || "").trim() && !(v.tax_id || "").trim()) return fail("יש להזין מס' לקוח סונול או ח.פ.");
       if (!v.reason) return fail("יש לבחור סיבה.");
       if (!(v.requester || "").trim() || !(v.phone || "").trim()) return fail("יש למלא שם המבקש וטלפון.");
@@ -188,8 +287,9 @@
       }
       document.getElementById("formBody").hidden = true;
       document.getElementById("done").style.display = "block";
+      // no-cors: הדף לא רואה אם Apps Script קיבל או דחה (לקוח לא מזוהה, הגבלת קצב), ולכן בלי "נשלח"
       document.getElementById("doneText").textContent = isUnblock()
-        ? "נשלח מייל אימות לכתובת הרשומה אצלנו בכרטיס הלקוח. כדי להשלים את הבקשה יש ללחוץ על הקישור שבמייל. ללא האימות הבקשה לא תטופל."
+        ? "אם הפרטים תואמים לכרטיס הלקוח, יישלח מייל אימות לכתובת הרשומה אצלנו. כדי להשלים את הבקשה יש ללחוץ על הקישור שבמייל. ללא האימות הבקשה לא תטופל."
         : "הבקשה התקבלה ותטופל בהקדם על ידי הצוות. תקבלו אישור במייל לאחר הביצוע.";
     });
   </script>
