@@ -158,9 +158,13 @@
     const send = document.getElementById("send");
     const isUnblock = () => form.action.value === "פתיחה";
 
+    // שאלת "קוד לתדלוק עצמי": רק בפתיחה של כרטיס רכב / כרטיס מאסטר / נהג (לא דלקן ולא סונוקאש)
+    const SELF_CODE_MEANS = ["כרטיס רכב", "כרטיס מאסטר / נהג"];
+    const askSelfCode = () => isUnblock() && SELF_CODE_MEANS.includes(form.querySelector('input[name="means"]:checked').value);
+
     function syncAction() {
       document.getElementById("unblockNotice").hidden = !isUnblock();
-      document.getElementById("selfCodeRow").hidden = !isUnblock();
+      document.getElementById("selfCodeRow").hidden = !askSelfCode();
       const sel = form.reason;
       sel.replaceChildren(new Option("בחרו סיבה...", ""), ...REASONS[form.action.value].map(r => new Option(r, r)));
     }
@@ -254,6 +258,7 @@
       addRow();
     }
     form.querySelectorAll('input[name="means"]').forEach(r => r.addEventListener("change", syncMeans));
+    form.querySelectorAll('input[name="means"]').forEach(r => r.addEventListener("change", syncAction));
     document.getElementById("addRow").addEventListener("click", addRow);
     syncMeans();
 
@@ -289,7 +294,7 @@
       try {
         // no-cors + text/plain: Apps Script לא מחזיר כותרות CORS, והבקשה נשלחת בכל זאת (תשובה אטומה)
         await fetch(ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ ...v, action: v.action, self_code: isUnblock() ? v.self_code : "" }) });
+          body: JSON.stringify({ ...v, action: v.action, self_code: askSelfCode() ? v.self_code : "" }) });
       } catch (e) {
         send.textContent = "שליחת הבקשה";
         return fail("השליחה נכשלה. נסו שוב בעוד רגע, או פנו אלינו בטלפון.");
